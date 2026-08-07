@@ -1,0 +1,369 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Palette
+   Light is the base definition; dark is layered on twice so that all three
+   theme states resolve correctly:
+     1. no attribute  -> follow the OS (prefers-color-scheme)
+     2. data-theme=dark  -> forced dark, even on a light OS
+     3. data-theme=light -> forced light, even on a dark OS
+   Every colour has its base value on bare :root so nothing is only defined
+   inside a media query.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #faf7f2;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4efe7;
+  --border: #e6ddd0;
+  --border-strong: #d5c8b6;
+
+  --text: #2a2430;
+  --text-muted: #6d6478;
+  --text-faint: #9b93a5;
+
+  --ember: #e8384f; /* primary action / Player 2 */
+  --ember-soft: #ffe9ec;
+  --mint: #0fa896; /* secondary / Player 1 */
+  --mint-soft: #dcf7f3;
+  --amber: #d98214; /* yarn + warnings */
+  --amber-soft: #fdf0dc;
+  --violet: #7c4ddb;
+  --violet-soft: #f0e9fd;
+
+  --tier-common: #8b8794;
+  --tier-rare: #3b82f6;
+  --tier-epic: #a855f7;
+  --tier-legendary: #e0951a;
+
+  --shadow-card: 0 1px 2px rgb(42 36 48 / 0.06), 0 4px 16px rgb(42 36 48 / 0.05);
+  --shadow-pop: 0 8px 40px rgb(42 36 48 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #17141b;
+    --bg-elevated: #201c27;
+    --surface: #201c27;
+    --surface-2: #292331;
+    --border: #332c3e;
+    --border-strong: #453c53;
+
+    --text: #f2eef7;
+    --text-muted: #a99fb8;
+    --text-faint: #756b83;
+
+    --ember: #ff5266;
+    --ember-soft: #3a1a22;
+    --mint: #2ee0c4;
+    --mint-soft: #10352f;
+    --amber: #f5a623;
+    --amber-soft: #38290f;
+    --violet: #a684ff;
+    --violet-soft: #261b3d;
+
+    --tier-common: #9d97a8;
+    --tier-rare: #60a5fa;
+    --tier-epic: #c084fc;
+    --tier-legendary: #fbbf24;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+    --shadow-pop: 0 8px 40px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #17141b;
+  --bg-elevated: #201c27;
+  --surface: #201c27;
+  --surface-2: #292331;
+  --border: #332c3e;
+  --border-strong: #453c53;
+
+  --text: #f2eef7;
+  --text-muted: #a99fb8;
+  --text-faint: #756b83;
+
+  --ember: #ff5266;
+  --ember-soft: #3a1a22;
+  --mint: #2ee0c4;
+  --mint-soft: #10352f;
+  --amber: #f5a623;
+  --amber-soft: #38290f;
+  --violet: #a684ff;
+  --violet-soft: #261b3d;
+
+  --tier-common: #9d97a8;
+  --tier-rare: #60a5fa;
+  --tier-epic: #c084fc;
+  --tier-legendary: #fbbf24;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-pop: 0 8px 40px rgb(0 0 0 / 0.5);
+}
+
+/* Layout breakpoints:
+     md: (768px)  iPad portrait and up — icon side rail
+     xl: (73.75rem = 1180px) iPad Pro landscape and desktops — full sidebar
+
+   Two non-obvious constraints, both of which cause the sidebar to render on
+   top of the content when violated:
+
+   1. Retune the built-in `xl` rather than adding a custom key. A custom
+      breakpoint is emitted ahead of every built-in one regardless of its
+      min-width, so its rules would lose to `md:` at desktop widths.
+   2. Declare it in `rem`, not `px`. Tailwind sorts breakpoints by comparing
+      values, and cannot order `1180px` against the stock `48rem` — a px value
+      here silently lands the `xl` media block before `md` in the output. */
+@theme {
+  --breakpoint-xl: 73.75rem;
+}
+
+/* Expose the palette to Tailwind as bg-surface / text-muted / border-border etc. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  --color-ember: var(--ember);
+  --color-ember-soft: var(--ember-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+
+  --color-common: var(--tier-common);
+  --color-rare: var(--tier-rare);
+  --color-epic: var(--tier-epic);
+  --color-legendary: var(--tier-legendary);
+
+  --font-sans:
+    ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+}
+
+/* ---------------------------------------------------------------------------
+   Platform base
+--------------------------------------------------------------------------- */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Stops iOS from re-flowing text sizes when you rotate an iPhone/iPad. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Kills the iOS rubber-band bounce so an installed PWA feels like an app. */
+  overscroll-behavior-y: none;
+}
+
+#root {
+  /* dvh, not vh: on iOS Safari, 100vh is taller than the visible area because
+     it excludes the collapsing address bar, which pushes the tab bar offscreen. */
+  min-height: 100dvh;
+}
+
+/* Removes the 300ms double-tap-to-zoom delay on every interactive element. */
+button,
+a,
+[role='button'],
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
+button,
+[role='button'] {
+  cursor: pointer;
+}
+
+/* iOS Safari zooms the whole page when you focus an input whose computed font
+   size is under 16px. Pinning 16px is the only reliable fix that doesn't
+   involve disabling zoom entirely. */
+input,
+select,
+textarea {
+  font-size: 16px;
+  font-family: inherit;
+}
+
+/* Chrome/Safari strip the native look off number inputs' spinners */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* iOS renders date inputs left-aligned and vertically off unless nudged */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  min-height: 1.4em;
+}
+
+/* Nav chrome should never be text-selectable — long-press on iOS otherwise
+   pops the selection magnifier instead of registering as a tap. */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Safe-area helpers (iPhone notch / home indicator, iPad rounded corners)
+--------------------------------------------------------------------------- */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.h-safe-bottom {
+  height: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scroll containers */
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Hide scrollbars on horizontal chip rows without losing scrollability */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Visible keyboard focus, invisible mouse focus */
+:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+--------------------------------------------------------------------------- */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ember) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-sheet-up {
+  animation: sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Anchorchet is a private two-person app, so the rules are an allowlist rather
+// than "any signed-in user". Firebase Auth lets anyone create an account
+// against your project by default — without the allowlist below, a stranger
+// who found the app URL could sign up and read the whole database.
+//
+// SETUP: create the two accounts, copy their UIDs from
+// Firebase console -> Authentication -> Users, and paste them into MEMBERS.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function members() {
+      return [
+        'PASTE_PLAYER_1_UID_HERE',
+        'PASTE_PLAYER_2_UID_HERE'
+      ];
+    }
+
+    function isMember() {
+      return request.auth != null && request.auth.uid in members();
+    }
+
+    // Profiles: everyone in the household can read both, but you may only
+    // write your own — this is what stops a role being reassigned remotely.
+    match /users/{userId} {
+      allow read: if isMember();
+      allow create, update: if isMember() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Shared collections. Both players read and write: he creates quests and
+    // she advances them, she logs yarn and he marks a restock, and either can
+    // post to the Hall of Fame.
+    match /crochet_quests/{id}    { allow read, write: if isMember(); }
+    match /yarn_stash/{id}        { allow read, write: if isMember(); }
+    match /bowling_sessions/{id}  { allow read, write: if isMember(); }
+    match /tournament_calendar/{id} { allow read, write: if isMember(); }
+    match /hall_of_fame/{id}      { allow read, write: if isMember(); }
+    match /hype_events/{id}       { allow read, write: if isMember(); }
+
+    // Anything not listed above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!--
+      viewport-fit=cover is what lets the app paint into the iPhone's notch /
+      Dynamic Island area. Combined with the env(safe-area-inset-*) padding in
+      index.css, this is what makes the app look native rather than letterboxed.
+      We deliberately do NOT set user-scalable=no: iOS Safari ignores it anyway,
+      and pinch-zoom is an accessibility feature. Input zoom-on-focus is instead
+      prevented by giving every input a >=16px font size.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+
+    <title>Anchorchet</title>
+    <meta name="description" content="A private hub for crochet quests, bowling scores, and the person keeping score." />
+
+    <!-- Installable to the iPhone / iPad home screen -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="application-name" content="Anchorchet" />
+    <meta name="apple-mobile-web-app-title" content="Anchorchet" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- black-translucent = our own background shows through the status bar -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17141b" media="(prefers-color-scheme: dark)" />
+
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
