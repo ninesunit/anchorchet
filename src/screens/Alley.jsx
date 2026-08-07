@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { PixelBall } from '../components/PixelBall'
+import { PixelLane } from '../components/PixelLane'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, SectionTitle } from '../components/ui/Card'
@@ -9,7 +10,6 @@ import { Icon } from '../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../components/ui/Modal'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
-import { dominantColor } from '../data/arsenal'
 import {
   PIN_POS,
   frameScores,
@@ -223,7 +223,17 @@ function MatchRow({ match, me, arsenal, onOpen, onDelete }) {
 
 /* ---------------------------------------------------------- match view -- */
 
-const PHASES = ['aim', 'power', 'spin']
+/**
+ * Swipe tuning.
+ *
+ * FLICK_REF is the upward speed (px/ms) that counts as a full-power throw;
+ * HOOK_REF is how far sideways the swipe must drift to reach maximum hook.
+ * Both are expressed against the lane's own height/width below so the feel is
+ * identical on a small iPhone and an iPad.
+ */
+const FLICK_REF = 1.5
+const HOOK_REF = 0.34
+const MIN_SWIPE = 28 // px of upward travel before it counts as a throw at all
 
 function MatchView({ match, me, arsenal, onBack, onUpdate }) {
   const them = other(me)
@@ -235,58 +245,90 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
   const myTurn = match.turn === me && match.status !== 'complete'
   const standing = match.standing?.[me] ?? PIN_POS.map((p) => p.n)
   const frameIndex = activeFrame(myRolls)
-
   const ball = arsenal.find((b) => b.id === match.ball_ids?.[me])
 
-  const [phase, setPhase] = useState(0)
-  const [locked, setLocked] = useState({ aim: 0, power: 0, spin: 0 })
-  const [sweep, setSweep] = useState(0)
-  const [rolling, setRolling] = useState(false)
+  const [aiming, setAiming] = useState(null)
+  const [throwing, setThrowing] = useState(null)
   const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(false)
 
-  const raf = useRef(0)
-  const t0 = useRef(0)
+  const surface = useRef(null)
+  const gesture = useRef(null)
 
-  // Sweeping meter. One RAF loop drives whichever phase is active; it stops
-  // entirely once the throw is locked in so a waiting player burns no battery.
-  useEffect(() => {
-    if (!myTurn || rolling || phase >= PHASES.length) return
-    t0.current = performance.now()
-    const speed = phase === 1 ? 900 : 1300 // power sweeps faster — it is the tense one
-    const tick = (now) => {
-      const t = ((now - t0.current) % speed) / speed
-      setSweep(Math.sin(t * Math.PI * 2))
-      raf.current = requestAnimationFrame(tick)
-    }
-    raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
-  }, [myTurn, rolling, phase])
+  /* ------------------------------------------------------------ swipe -- */
 
-  function lockIn() {
-    buzz(12)
-    const key = PHASES[phase]
-    // Power reads 0..1; aim and spin read -1..1.
-    const value = key === 'power' ? Math.abs(sweep) * 0.85 + 0.15 : sweep * 0.9
-    const next = { ...locked, [key]: value }
-    setLocked(next)
-    if (phase < PHASES.length - 1) {
-      setPhase(phase + 1)
-    } else {
-      roll(next)
+  function pointFrom(e) {
+    const rect = surface.current.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height,
+      w: rect.width,
+      h: rect.height,
+      t: performance.now(),
     }
   }
 
+  function onPointerDown(e) {
+    if (!myTurn || busy) return
+    // Capture keeps the gesture alive if the finger leaves the lane mid-swipe.
+    // It can throw InvalidPointerId on some engines; a failure there must not
+    // abort the throw, so swallow it and carry on uncaptured.
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    } catch {
+      /* uncaptured is still perfectly playable */
+    }
+    const p = pointFrom(e)
+    gesture.current = { start: p, last: p }
+    // Aim is where the finger lands: that is your stance on the approach.
+    setAiming({ aim: p.x * 2 - 1, spin: 0 })
+  }
+
+  function onPointerMove(e) {
+    if (!gesture.current) return
+    const p = pointFrom(e)
+    gesture.current.last = p
+    const g = gesture.current
+    // Sideways drift over the swipe is the hook. A dead-straight flick has none.
+    const drift = (p.x - g.start.x) / HOOK_REF
+    setAiming({
+      aim: g.start.x * 2 - 1,
+      spin: Math.max(-1, Math.min(1, drift)),
+    })
+  }
+
+  async function onPointerUp() {
+    const g = gesture.current
+    gesture.current = null
+    if (!g || busy) return
+
+    const dyPx = (g.start.y - g.last.y) * g.start.h
+    if (dyPx < MIN_SWIPE) {
+      // A tap or a downward drag is not a throw — reset rather than lob one.
+      setAiming(null)
+      return
+    }
+
+    const dt = Math.max(16, g.last.t - g.start.t)
+    const speed = dyPx / dt
+    const power = Math.max(0.15, Math.min(1, speed / FLICK_REF))
+    const aim = g.start.x * 2 - 1
+    const spin = Math.max(-1, Math.min(1, (g.last.x - g.start.x) / HOOK_REF))
+
+    await roll({ aim, power, spin })
+  }
+
   async function roll(inputs) {
-    setRolling(true)
-    cancelAnimationFrame(raf.current)
+    setBusy(true)
+    buzz(14)
 
     const pins = PIN_POS.map((p) => standing.includes(p.n))
     const rng = makeRng(Date.now() ^ (myRolls.length * 2654435761))
     const outcome = throwBall({ pins, ...inputs, rng })
     const downed = pins.filter(Boolean).length - outcome.pins.filter(Boolean).length
 
+    setThrowing({ entry: outcome.entry, pins: outcome.pins })
     setResult({ ...outcome, downed })
-    // Let the ball travel before the numbers change.
     await new Promise((r) => setTimeout(r, 1500))
 
     const nextRolls = [...myRolls, downed]
@@ -294,8 +336,6 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
     const frameDone = isFrameComplete(nextFrames[frameIndex], frameIndex)
     const gameDone = isGameComplete(nextFrames)
 
-    // Tenth frame re-racks after a strike or spare; elsewhere a finished frame
-    // resets the deck for whoever bowls next.
     let nextStanding = outcome.pins.map((up, i) => (up ? PIN_POS[i].n : null)).filter(Boolean)
     if (frameDone) nextStanding = PIN_POS.map((p) => p.n)
     else if (frameIndex === 9 && outcome.pins.every((x) => !x)) {
@@ -306,24 +346,21 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
     const patch = {
       rolls: { ...match.rolls, [me]: nextRolls },
       standing: { ...match.standing, [me]: nextStanding },
-      // Hand over on a completed frame; a second ball in the same frame stays
-      // with you. Finishing your tenth also hands over so they can finish.
       turn: frameDone ? them : match.turn,
     }
-
     if (bothDone) {
       const a = totalScore(nextFrames)
-      const b = totalScore(framesFromRolls(theirRolls))
+      const bScore = totalScore(framesFromRolls(theirRolls))
       patch.status = 'complete'
-      patch.winner = a === b ? 'tie' : a > b ? me : them
-      patch.final = { [me]: a, [them]: b }
+      patch.winner = a === bScore ? 'tie' : a > bScore ? me : them
+      patch.final = { [me]: a, [them]: bScore }
     }
 
     await onUpdate(patch)
+    setThrowing(null)
     setResult(null)
-    setRolling(false)
-    setPhase(0)
-    setLocked({ aim: 0, power: 0, spin: 0 })
+    setAiming(null)
+    setBusy(false)
   }
 
   const myScore = totalScore(myFrames)
@@ -347,9 +384,7 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
         <div className="flex items-center justify-around gap-2 text-center">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-faint">You</p>
-            <p className="text-3xl font-extrabold tabular-nums leading-none text-mint">
-              {myScore}
-            </p>
+            <p className="text-3xl font-extrabold tabular-nums leading-none text-mint">{myScore}</p>
           </div>
           <div className="text-[13px] font-bold text-faint">vs</div>
           <div>
@@ -359,7 +394,65 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
         </div>
       </Card>
 
-      <Lane standing={standing} ball={ball} result={result} rolling={rolling} />
+      <div
+        ref={surface}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          gesture.current = null
+          setAiming(null)
+        }}
+        className="relative overflow-hidden rounded-2xl border border-border"
+        style={{ aspectRatio: '96 / 128', touchAction: 'none' }}
+      >
+        <PixelLane
+          standing={standing}
+          ballGrid={ball?.pixel_art_grid}
+          aiming={aiming}
+          throwing={throwing}
+          dragging={Boolean(aiming)}
+        />
+
+        {/* Overlay copy sits on the lane so the canvas stays pure pixels. */}
+        {match.status !== 'complete' && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3 text-center">
+            {result ? (
+              <p className="text-[15px] font-extrabold text-white drop-shadow">
+                {result.gutter ? 'Gutter…' : result.downed === 10 ? 'Strike!' : `${result.downed} down`}
+              </p>
+            ) : myTurn ? (
+              <p className="text-[13px] font-semibold text-white/80 drop-shadow">
+                {aiming ? 'Flick up to throw — curve your swipe to hook' : 'Swipe up the lane to bowl'}
+              </p>
+            ) : (
+              <p className="text-[13px] font-semibold text-white/80 drop-shadow">Their turn</p>
+            )}
+          </div>
+        )}
+
+        {myTurn && !aiming && !busy && (
+          <div className="pointer-events-none absolute inset-x-0 top-2 text-center">
+            <span className="rounded-full bg-black/45 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white/90">
+              Frame {frameIndex + 1}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {aiming && (
+        <div className="mt-2 flex justify-center gap-4 text-[12px] font-semibold text-muted">
+          <span>
+            Line <span className="tabular-nums text-text">{aiming.aim.toFixed(2)}</span>
+          </span>
+          <span>
+            Hook{' '}
+            <span className="tabular-nums text-text">
+              {aiming.spin > 0.05 ? 'right' : aiming.spin < -0.05 ? 'left' : 'straight'}
+            </span>
+          </span>
+        </div>
+      )}
 
       {match.status === 'complete' ? (
         <Card className="mt-4 p-4 text-center">
@@ -373,180 +466,25 @@ function MatchView({ match, me, arsenal, onBack, onUpdate }) {
             </p>
           )}
         </Card>
-      ) : myTurn ? (
-        <ThrowControls
-          phase={phase}
-          sweep={sweep}
-          locked={locked}
-          rolling={rolling}
-          result={result}
-          frameIndex={frameIndex}
-          onLock={lockIn}
-        />
-      ) : (
+      ) : !myTurn ? (
         <Card className="mt-4 flex items-center gap-3 p-4">
           <span className="relative flex size-2.5">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-violet opacity-70" />
             <span className="relative inline-flex size-2.5 rounded-full bg-violet" />
           </span>
-          <p className="text-[14px] font-semibold">
-            Their turn. It will be here when they bowl.
-          </p>
+          <p className="text-[14px] font-semibold">Their turn. It will be here when they bowl.</p>
         </Card>
-      )}
+      ) : null}
 
       <div className="mt-5 flex flex-col gap-3">
         <Scoreboard label="You" frames={myFrames} highlight={myTurn} />
-        <Scoreboard label="Them" frames={theirFrames} highlight={!myTurn && match.status !== 'complete'} />
+        <Scoreboard
+          label="Them"
+          frames={theirFrames}
+          highlight={!myTurn && match.status !== 'complete'}
+        />
       </div>
     </div>
-  )
-}
-
-/* ----------------------------------------------------------------- lane -- */
-
-function Lane({ standing, ball, result, rolling }) {
-  const [t, setT] = useState(0)
-  const raf = useRef(0)
-
-  useEffect(() => {
-    if (!rolling || !result) {
-      setT(0)
-      return
-    }
-    const start = performance.now()
-    const tick = (now) => {
-      const p = Math.min(1, (now - start) / 1200)
-      setT(p)
-      if (p < 1) raf.current = requestAnimationFrame(tick)
-    }
-    raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
-  }, [rolling, result])
-
-  const tint = dominantColor(ball?.pixel_art_grid)
-  // Ball travels bottom -> top, curving toward its entry point near the end.
-  const entry = result?.entry ?? 0
-  const bx = 50 + (entry * 26) * Math.pow(t, 2.2)
-  const by = 96 - t * 62
-
-  // Pins drop out once the ball has arrived.
-  const landed = t > 0.92
-  const downNow = (n) => landed && result && !result.pins[n - 1]
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-[#2a2028]">
-      <svg viewBox="0 0 100 100" className="block w-full" style={{ aspectRatio: '1 / 1.05' }}>
-        {/* lane in soft perspective */}
-        <polygon points="18,100 82,100 66,26 34,26" fill="#c8a678" />
-        <polygon points="18,100 22,100 36,26 34,26" fill="#00000022" />
-        <polygon points="78,100 82,100 66,26 64,26" fill="#00000022" />
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line
-            key={f}
-            x1={18 + f * 64}
-            y1="100"
-            x2={34 + f * 32}
-            y2="26"
-            stroke="#00000014"
-            strokeWidth="0.6"
-          />
-        ))}
-        {/* pin deck */}
-        <polygon points="34,26 66,26 64,14 36,14" fill="#a98757" />
-
-        {/* pins */}
-        {PIN_POS.map((pin) => {
-          const up = standing.includes(pin.n)
-          const down = downNow(pin.n)
-          const px = 50 + pin.x * 13
-          const py = 24 - pin.d * 5.5
-          if (!up) return null
-          return (
-            <g
-              key={pin.n}
-              opacity={down ? 0 : 1}
-              style={{ transition: 'opacity 260ms ease, transform 260ms ease' }}
-              transform={down ? `translate(${pin.x * 4}, 6) rotate(35 ${px} ${py})` : undefined}
-            >
-              <ellipse cx={px} cy={py} rx="1.9" ry="3.4" fill="#fdfbf7" />
-              <rect x={px - 1.9} y={py - 0.6} width="3.8" height="1" fill="#e8384f" />
-            </g>
-          )
-        })}
-
-        {/* ball */}
-        {(rolling || t > 0) && (
-          <g transform={`translate(${bx} ${by})`}>
-            <circle r={3.4 - t * 1.1} fill={tint} />
-            <circle r={(3.4 - t * 1.1) * 0.45} cx={-0.9} cy={-0.9} fill="#ffffff33" />
-          </g>
-        )}
-
-        {/* foul line */}
-        <line x1="18" y1="96" x2="82" y2="96" stroke="#00000022" strokeWidth="0.8" />
-      </svg>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------- controls -- */
-
-function ThrowControls({ phase, sweep, locked, rolling, result, frameIndex, onLock }) {
-  if (rolling) {
-    return (
-      <Card className="mt-4 p-4 text-center">
-        <p className="text-[15px] font-bold">
-          {result ? (result.gutter ? 'Gutter…' : `${result.downed} down`) : 'Rolling…'}
-        </p>
-      </Card>
-    )
-  }
-
-  const labels = ['Line it up', 'Power', 'Spin']
-  const hints = [
-    'Tap to lock your line',
-    'Tap at the top of the bar',
-    'Tap to set the hook, then it rolls',
-  ]
-
-  return (
-    <Card className="mt-4 p-4">
-      <div className="mb-1 flex items-center justify-between">
-        <p className="text-[13px] font-bold uppercase tracking-wide text-faint">
-          Frame {frameIndex + 1}
-        </p>
-        <p className="text-[13px] font-bold">{labels[phase]}</p>
-      </div>
-
-      <div className="relative my-3 h-12 overflow-hidden rounded-xl border border-border bg-surface-2">
-        {/* centre reference */}
-        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border-strong" />
-        {phase === 1 ? (
-          <div
-            className="absolute inset-y-1 left-1 rounded-lg bg-ember transition-none"
-            style={{ width: `calc(${(Math.abs(sweep) * 0.85 + 0.15) * 100}% - 0.5rem)` }}
-          />
-        ) : (
-          <div
-            className="absolute inset-y-1 w-2.5 rounded-full bg-ember"
-            style={{ left: `calc(${50 + sweep * 45}% - 0.3125rem)` }}
-          />
-        )}
-        {/* locked markers from earlier phases */}
-        {phase > 0 && (
-          <div
-            className="absolute inset-y-0 w-0.5 bg-mint"
-            style={{ left: `calc(${50 + locked.aim * 50}% )` }}
-          />
-        )}
-      </div>
-
-      <Button variant="primary" size="lg" full onClick={onLock}>
-        {phase === PHASES.length - 1 ? 'Throw' : 'Lock'}
-      </Button>
-      <p className="mt-2 text-center text-[12px] text-faint">{hints[phase]}</p>
-    </Card>
   )
 }
 

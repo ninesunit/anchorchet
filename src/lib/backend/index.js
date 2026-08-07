@@ -22,4 +22,6 @@ export const COLLECTIONS = {
   patternRefs: 'pattern_refs',
   arsenal: 'bowling_arsenal',
   matches: 'bowling_matches',
+  wishlist: 'yarn_wishlist',
+  projects: 'custom_projects',
 }

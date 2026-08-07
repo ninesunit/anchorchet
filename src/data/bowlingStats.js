@@ -140,3 +140,44 @@ export function arsenalSummary(sessions, arsenal) {
     untracked: arsenal.length - used.length,
   }
 }
+
+/* ---------------------------------------------------- benchmark engine -- */
+
+/** Highest possible single game — used to flag an unreachable catch-up target. */
+export const MAX_GAME = 300
+
+/**
+ * Where she stands against a per-game benchmark across a series.
+ *
+ * The target is cumulative: a 200 benchmark over 2 games is 400, so 386 pins is
+ * "under 14". `needNext` is what the next game must be to pull the whole series
+ * back to level, which is the number she actually wants mid-series.
+ */
+export function benchmarkStanding(scores, benchmark) {
+  const games = (scores || []).map(Number).filter((n) => !Number.isNaN(n))
+  const target = Number(benchmark) || 0
+  if (!target) return null
+
+  const played = games.length
+  const pins = games.reduce((a, b) => a + b, 0)
+  const targetSoFar = target * played
+  const diff = pins - targetSoFar
+  const needNext = target * (played + 1) - pins
+
+  return {
+    played,
+    pins,
+    benchmark: target,
+    targetSoFar,
+    // Positive is over the benchmark, negative is under.
+    diff,
+    needNext,
+    // 300 is the ceiling; past that the series cannot be rescued in one game.
+    reachable: needNext <= MAX_GAME,
+    // Already over the benchmark. Note this is not the same as needNext <= 0,
+    // which would mean she could bowl a zero and still hold the average.
+    ahead: diff > 0,
+    // A cushion big enough that the next game genuinely cannot drop her under.
+    banked: needNext <= 0,
+  }
+}

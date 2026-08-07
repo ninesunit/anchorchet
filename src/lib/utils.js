@@ -96,3 +96,12 @@ export function buzz(pattern = 8) {
     /* unsupported */
   }
 }
+
+/**
+ * Yarn quantities are decimal now ("0.5 skeins used"), but "2" should not
+ * render as "2.0". Rounds to 2dp to keep float drift out of the UI.
+ */
+export function fmtQty(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100
+  return Number.isInteger(v) ? String(v) : String(v)
+}

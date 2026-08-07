@@ -186,6 +186,23 @@ Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
 it syncs to both phones and replaces the placeholder everywhere. Real photos are
 not bundled — the game characters are somebody else's artwork.
 
+**Wishlist / Buy requests.** She adds yarn, kits or tools with a Shopee or
+TikTok Shop link (a missing `https://` is added, or the href navigates inside
+the app instead of out to the shop). The same documents render as a buying
+queue on Player 2's Supply Drop. Marking a yarn item bought drops it straight
+into her stash.
+
+**My Projects.** Custom projects outside the pattern catalogue: reference
+images, progress photos, and a yarn ledger. Usage is logged in quarter-skein
+steps and subtracted from the stash immediately, clamped at zero so a mistyped
+number cannot drive a ball negative, with status kept in step so the craft
+engine and Supply Drop stay truthful.
+
+**Over/under benchmark.** Set a per-game target and every game is scored
+against the cumulative pace: 200 across two games is a 400 target, so 386 pins
+reads "under 14" and the next game needs 214 to level. Targets past 300 are
+flagged as not catchable in one game.
+
 **Bowling arsenal.** Each ball carries a nickname, model, weight, coverstock,
 a role (strike / spare / backup) and a 16x16 pixel-art design she draws in-app —
 paint, fill, erase, mirror symmetry, undo, and seven generated presets.
@@ -198,8 +215,12 @@ session's games credit every ball on it; the UI says so and flags how many
 sessions used more than one ball rather than implying per-throw precision. A
 recommendation is marked provisional until it has two sessions behind it.
 
-**The Cozy Alley.** A turn-based two-player pixel bowling minigame. Three taps —
-line, power, spin — then the ball curves down the lane. Her arsenal designs are
+**The Cozy Alley.** A turn-based two-player pixel bowling minigame. Swipe up
+the lane to throw: where the finger lands is the line, how fast it flicks is the
+power, and how far it drifts sideways is the hook. A live dotted guide traces
+the same curve the physics will use, so the preview cannot lie. The lane is
+drawn at 96x128 and upscaled with smoothing off, which is what makes the pixels
+crisp rather than a blurry vector look. Her arsenal designs are
 the ball skins. Ten frames each, taken in turns across the two phones, with an
 optional wager. Pin physics were grid-searched against target outcomes rather
 than guessed: a flush pocket hit strikes about 40% of the time, a half-power
@@ -311,13 +332,22 @@ yarn_stash/{id}             color, weight, quantity, status: in_stock|low|empty,
 bowling_sessions/{id}       type: training|tournament, date, location,
                             game_scores[], series_total, session_average, note,
                             ball_ids[], oil_pattern, status: live|ended,
-                            spares_converted, spare_attempts
+                            spares_converted, spare_attempts,
+                            benchmark_target, current_over_under,
+                            pins_needed_next_game
 tournament_calendar/{id}    title, date, location, call_time, notes
 hall_of_fame/{id}           title, quest_id, kind: finished|in_use, caption,
                             image_url, uploaded_by, created_at
 pattern_refs/{patternId}    image_url, updated_at   (doc id IS the pattern id)
 bowling_arsenal/{id}        name, nickname, role, weight_lbs, coverstock,
                             pixel_art_grid (256 hex strings), created_at
+yarn_wishlist/{id}          title, url, kind, status: pending|purchased,
+                            color, hex, weight, quantity, price, note,
+                            added_date, purchased_date
+custom_projects/{id}        title, note, status: in_progress|completed,
+                            reference_images[], progress_photos[],
+                            yarns_used[{stash_id,color,hex,quantity_used}],
+                            created_at, completed_at
 bowling_matches/{id}        wager, status, turn, winner, created_at,
                             rolls: {player1:[], player2:[]},
                             standing: {player1:[], player2:[]},

@@ -20,6 +20,7 @@ import { HypeWatcher } from './HypeWatcher'
  */
 export function AppShell() {
   const { profile, role } = useAuth()
+  const { pathname } = useLocation()
   const items = NAV[role] ?? NAV.player1
 
   return (
@@ -31,12 +32,18 @@ export function AppShell() {
         <TopBar profile={profile} />
         <main
           className={cx(
-            'mx-auto w-full max-w-2xl px-4 xl:max-w-6xl xl:px-8',
+            'mx-auto w-full max-w-2xl px-4',
+            // iPad portrait gets a touch more room; desktop goes wide so
+            // dashboards use real columns instead of one stretched phone strip.
+            'md:max-w-3xl md:px-6 xl:max-w-6xl xl:px-8',
             // Bottom padding clears the tab bar + home indicator on phones.
             'pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-12'
           )}
         >
-          <Outlet />
+          {/* Keyed on the path so each navigation replays the transition. */}
+          <div key={pathname} className="animate-route">
+            <Outlet />
+          </div>
         </main>
       </div>
 

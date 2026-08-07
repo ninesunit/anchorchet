@@ -11,6 +11,7 @@ import { questNeeds, stashSummary, suggestPurchases } from '../../data/engine'
 import { PATTERNS_BY_ID } from '../../data/patterns'
 import { WEIGHTS } from '../../data/colors'
 import { cx } from '../../lib/utils'
+import { Wishlist } from '../Wishlist'
 
 export function SupplyDrop() {
   const { stash, quests, updateYarn, addYarn } = useData()
@@ -63,6 +64,9 @@ export function SupplyDrop() {
       <ChipRow className="mb-4">
         <Chip active={tab === 'list'} onClick={() => setTab('list')}>
           Shopping list
+        </Chip>
+        <Chip active={tab === 'wishlist'} onClick={() => setTab('wishlist')}>
+          Buy requests
         </Chip>
         <Chip active={tab === 'unlock'} onClick={() => setTab('unlock')}>
           Unlock more patterns
@@ -185,6 +189,8 @@ export function SupplyDrop() {
           )}
         </section>
       )}
+
+      {tab === 'wishlist' && <Wishlist />}
 
       {tab === 'unlock' && (
         <section>

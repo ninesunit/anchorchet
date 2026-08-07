@@ -42,6 +42,8 @@ service cloud.firestore {
     match /pattern_refs/{id}      { allow read, write: if isMember(); }
     match /bowling_arsenal/{id}   { allow read, write: if isMember(); }
     match /bowling_matches/{id}   { allow read, write: if isMember(); }
+    match /yarn_wishlist/{id}     { allow read, write: if isMember(); }
+    match /custom_projects/{id}   { allow read, write: if isMember(); }
 
     // Anything not listed above is denied.
     match /{document=**} {

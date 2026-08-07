@@ -28,6 +28,8 @@ export function DataProvider({ children }) {
   const [patternRefs, setPatternRefs] = useState({})
   const [arsenal, setArsenal] = useState([])
   const [matches, setMatches] = useState([])
+  const [wishlist, setWishlist] = useState([])
+  const [projects, setProjects] = useState([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -41,6 +43,8 @@ export function DataProvider({ children }) {
       setPatternRefs({})
       setArsenal([])
       setMatches([])
+      setWishlist([])
+      setProjects([])
       setReady(false)
       return
     }
@@ -79,6 +83,16 @@ export function DataProvider({ children }) {
           rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
         )
       ),
+      backend.db.subscribe(COLLECTIONS.wishlist, (rows) =>
+        setWishlist(
+          rows.sort((a, b) => (b.added_date?.getTime?.() || 0) - (a.added_date?.getTime?.() || 0))
+        )
+      ),
+      backend.db.subscribe(COLLECTIONS.projects, (rows) =>
+        setProjects(
+          rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
+        )
+      ),
     ]
 
     setReady(true)
@@ -98,6 +112,8 @@ export function DataProvider({ children }) {
       patternRefs,
       arsenal,
       matches,
+      wishlist,
+      projects,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -148,6 +164,25 @@ export function DataProvider({ children }) {
       updateBall: (id, patch) => backend.db.update(c.arsenal, id, patch),
       removeBall: (id) => backend.db.remove(c.arsenal, id),
 
+      /* -------------------------------------------------- wishlist ---- */
+      addWish: (data) =>
+        backend.db.add(c.wishlist, { status: 'pending', added_date: new Date(), ...data }),
+      updateWish: (id, patch) => backend.db.update(c.wishlist, id, patch),
+      removeWish: (id) => backend.db.remove(c.wishlist, id),
+
+      /* -------------------------------------------------- projects ---- */
+      addProject: (data) =>
+        backend.db.add(c.projects, {
+          status: 'in_progress',
+          reference_images: [],
+          progress_photos: [],
+          yarns_used: [],
+          created_at: new Date(),
+          ...data,
+        }),
+      updateProject: (id, patch) => backend.db.update(c.projects, id, patch),
+      removeProject: (id) => backend.db.remove(c.projects, id),
+
       /* --------------------------------------------------- matches ---- */
       addMatch: (data) => backend.db.add(c.matches, { created_at: new Date(), ...data }),
       updateMatch: (id, patch) => backend.db.update(c.matches, id, patch),
@@ -164,7 +199,7 @@ export function DataProvider({ children }) {
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

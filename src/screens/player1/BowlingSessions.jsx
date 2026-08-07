@@ -10,6 +10,7 @@ import { Sparkline } from '../../components/ui/Sparkline'
 import { PixelBall } from '../../components/PixelBall'
 import { useData } from '../../context/DataContext'
 import { OIL_ORDER, OIL_PATTERNS, ROLES } from '../../data/arsenal'
+import { benchmarkStanding } from '../../data/bowlingStats'
 import {
   cx,
   formatDateLong,
@@ -294,6 +295,8 @@ function LiveSession({ session, onAddGame, onEdit, onEnd }) {
         </div>
       )}
 
+      <BenchmarkPanel scores={scores} benchmark={session.benchmark_target} />
+
       <form onSubmit={submit} className="mt-3.5 flex gap-2">
         <Input
           type="number"
@@ -316,6 +319,67 @@ function LiveSession({ session, onAddGame, onEdit, onEnd }) {
         <strong className="text-muted">End</strong> when you are done for the day.
       </p>
     </Card>
+  )
+}
+
+/**
+ * Over/under against a per-game benchmark, plus what the next game has to be to
+ * pull the series level. The cumulative framing is the one that matters
+ * mid-series: 200 across two games is a 400 target, so 386 pins reads "under 14".
+ */
+function BenchmarkPanel({ scores, benchmark, compact = false }) {
+  const standing = benchmarkStanding(scores, benchmark)
+  if (!standing || standing.played === 0) return null
+
+  const { diff, needNext, benchmark: mark, targetSoFar, pins, reachable, banked, ahead } = standing
+  const level = diff === 0
+
+  return (
+    <div
+      className={cx(
+        'mt-3 rounded-xl border px-3.5 py-3',
+        level
+          ? 'border-border bg-surface-2'
+          : ahead
+            ? 'border-mint/45 bg-mint-soft/30'
+            : 'border-amber/45 bg-amber-soft/25'
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+          vs {mark} pace
+        </p>
+        <p className="text-[11px] tabular-nums text-faint">
+          {pins} / {targetSoFar}
+        </p>
+      </div>
+
+      <p
+        className={cx(
+          'mt-0.5 text-2xl font-extrabold leading-none tabular-nums',
+          level ? 'text-text' : ahead ? 'text-mint' : 'text-amber'
+        )}
+      >
+        {level ? 'Level' : ahead ? `Over ${diff}` : `Under ${Math.abs(diff)}`}
+      </p>
+
+      {!compact && (
+        <p className="mt-2 text-[13px] leading-snug text-text">
+          {banked ? (
+            <>Anything next game keeps you at {mark}.</>
+          ) : reachable ? (
+            <>
+              Target for game {standing.played + 1}:{' '}
+              <strong className="tabular-nums">{needNext}</strong> pins
+            </>
+          ) : (
+            <span className="text-muted">
+              Needs {needNext} next game to level up — not catchable in one. Chip at it.
+            </span>
+          )}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -370,6 +434,14 @@ function SessionCard({ session, balls, onEdit }) {
         </div>
       </div>
 
+      {Number(session.benchmark_target) > 0 && (
+        <BenchmarkPanel
+          scores={session.game_scores || []}
+          benchmark={session.benchmark_target}
+          compact
+        />
+      )}
+
       {(session.oil_pattern || (session.ball_ids || []).length > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {session.oil_pattern && OIL_PATTERNS[session.oil_pattern] && (
@@ -408,6 +480,7 @@ function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
   const [note, setNote] = useState('')
   const [ballIds, setBallIds] = useState([])
   const [oil, setOil] = useState('house')
+  const [benchmark, setBenchmark] = useState('')
   const [sparesMade, setSparesMade] = useState('')
   const [spareTries, setSpareTries] = useState('')
   const [busy, setBusy] = useState(false)
@@ -422,12 +495,17 @@ function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
     setNote(session.note || '')
     setBallIds(session.ball_ids || [])
     setOil(session.oil_pattern || 'house')
+    setBenchmark(session.benchmark_target ? String(session.benchmark_target) : '')
     setSparesMade(session.spares_converted != null ? String(session.spares_converted) : '')
     setSpareTries(session.spare_attempts != null ? String(session.spare_attempts) : '')
   }
   if (!open && seed !== null) setSeed(null)
 
   const numeric = scores.map(Number).filter((n) => !Number.isNaN(n) && n >= 0)
+  const standing = benchmarkStanding(
+    scores.filter((x) => x !== '').map(Number),
+    Number(benchmark) || 0
+  )
   const filled = scores.filter((s) => s !== '')
   const total = seriesTotal(filled)
   const average = sessionAverage(filled)
@@ -450,6 +528,11 @@ function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
       note: note.trim(),
       ball_ids: ballIds,
       oil_pattern: oil,
+      benchmark_target: benchmark === '' ? null : Number(benchmark),
+      // Denormalised so Player 2's dashboard can show the standing without
+      // recomputing, and so the numbers are frozen with the session.
+      current_over_under: standing ? standing.diff : null,
+      pins_needed_next_game: standing && !standing.banked ? standing.needNext : null,
       // Left blank means "not tracked" rather than zero, so an untracked
       // session cannot drag the spare percentage down.
       spares_converted: sparesMade === '' ? null : Number(sparesMade),
@@ -573,6 +656,33 @@ function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
             </p>
           </div>
         </div>
+
+        <Field
+          label="Benchmark average"
+          hint="optional — the number you are chasing"
+          htmlFor="session-benchmark"
+        >
+          <Input
+            id="session-benchmark"
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="300"
+            value={benchmark}
+            onChange={(e) => setBenchmark(e.target.value)}
+            placeholder="200"
+            className="text-center font-bold"
+          />
+          {standing && standing.played > 0 && (
+            <p className="mt-1.5 text-[12px] leading-snug text-muted">
+              {standing.played} game{standing.played === 1 ? '' : 's'} against a target of{' '}
+              {standing.targetSoFar} —{' '}
+              <strong className={standing.diff >= 0 ? 'text-mint' : 'text-ember'}>
+                {standing.diff >= 0 ? `over ${standing.diff}` : `under ${Math.abs(standing.diff)}`}
+              </strong>
+            </p>
+          )}
+        </Field>
 
         <Field label="Lane condition" hint="powers the oil matcher">
           <div className="grid grid-cols-2 gap-2">

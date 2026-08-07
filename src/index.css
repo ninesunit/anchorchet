@@ -176,8 +176,24 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Kills the iOS rubber-band bounce so an installed PWA feels like an app. */
-  overscroll-behavior-y: none;
+  /* `none` on both axes kills the iOS rubber-band AND the horizontal
+     swipe-to-navigate gesture, which otherwise fires while swiping the
+     bowling lane. */
+  overscroll-behavior: none;
+}
+
+/* Long-press on a card should not offer "Copy"/"Look Up" like a web page —
+   inputs and real text are opted back in below. */
+body {
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+[contenteditable],
+.selectable {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 #root {
@@ -355,6 +371,28 @@ input[type='datetime-local'] {
 }
 .animate-pulse-ring {
   animation: pulse-ring 1.8s ease-out infinite;
+}
+
+/* Route transition. Short and slightly eased so navigation feels like a
+   native push rather than a page swap. */
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-route {
+  animation: route-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Tab bar and rail should never be draggable or selectable. */
+nav {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

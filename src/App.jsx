@@ -18,6 +18,8 @@ import { BowlingSessions } from './screens/player1/BowlingSessions'
 import { BowlingCalendar } from './screens/player1/BowlingCalendar'
 import { Arsenal } from './screens/player1/Arsenal'
 import { Alley } from './screens/Alley'
+import { Wishlist } from './screens/Wishlist'
+import { Projects } from './screens/player1/Projects'
 import { FocusMode } from './screens/player1/FocusMode'
 
 import { AnchorHome } from './screens/player2/AnchorHome'
@@ -62,7 +64,9 @@ function Player1Routes() {
           <Route index element={<Navigate to="quests" replace />} />
           <Route path="quests" element={<QuestBoard />} />
           <Route path="craft" element={<ReadyToCraft />} />
+          <Route path="projects" element={<Projects />} />
           <Route path="stash" element={<YarnStash />} />
+          <Route path="wishlist" element={<Wishlist />} />
         </Route>
 
         <Route path="bowling" element={<BowlingSection />}>
