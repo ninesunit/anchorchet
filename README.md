@@ -15,12 +15,14 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-It boots straight into **demo mode** with sample data — no setup, no accounts.
-Sign in as either player from the landing screen.
+With `.env` present it runs against the live `anchorchet` Firebase project and
+shows the real email/password login.
 
-> **Try the two-sided experience:** open the app in two browser tabs, enter as
-> Player 1 in one and Player 2 in the other. The session is per-tab and the data
-> is shared, so saving a bowling score in one tab updates the other instantly.
+To poke around without touching real data, move `.env` aside and restart — the
+app falls back to **demo mode**: sample content, no accounts, stored in the
+browser. In demo mode you can open two tabs and enter as Player 1 in one and
+Player 2 in the other; sessions are per-tab and data is shared, so a score saved
+in one tab appears in the other instantly.
 
 To test on your phone, run `npm run dev` and open the **Network** URL it prints
 on a device on the same wifi.
@@ -34,43 +36,77 @@ on a device on the same wifi.
 
 ---
 
-## Switching demo mode off (going live)
+## Firebase — what is already wired up
 
-Demo mode stores everything in one browser. To get real accounts and sync
-between two phones, connect Firebase:
+The `anchorchet` Firebase project is connected. Config is in `.env` (tracked on
+purpose — Vite inlines those values into the client bundle at build time, so
+they are public either way; the real access boundary is the rules file).
+Verified against the live project:
 
-1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
-2. **Build → Authentication → Sign-in method →** enable **Email/Password**.
-3. **Build → Firestore Database →** create a database.
-4. **Project settings → General → Your apps →** add a **Web app** and copy the config.
-5. `cp .env.example .env` and paste the values in.
-6. Restart the dev server.
+- API key and project resolve.
+- Email/Password sign-in is enabled.
+- The app boots in live mode: real login form, no demo cards.
 
-The app detects the config and switches to live Firestore automatically — the
-banner in **Settings → Data** flips from *Demo* to *Live*.
+`firestore.rules` already contains both UIDs, so only you two can read or write
+anything:
 
-### Locking it down (do this before sharing the URL)
+```
+ioVbP69SI6TRCdemMOiTVqp9jgG2   Player 1 — the crafter
+3OH4lfeofPY5iZUQ81FyHp0Dbz82   Player 2 — the anchor
+```
 
-Firebase Auth lets *anyone* create an account against your project by default.
-`firestore.rules` is an allowlist that keeps the two of you in and everyone else
-out.
+## Four steps left (they need a browser login, which cannot be scripted)
 
-1. Create both accounts in the app.
-2. Copy each UID from **Firebase console → Authentication → Users**.
-3. Paste them into the `members()` list in `firestore.rules`.
-4. Publish the rules (paste into **Firestore → Rules**, or `firebase deploy --only firestore:rules`).
+**1. Create the Firestore database — required, nothing works without it.**
+The project does not have one yet; an unauthenticated probe returns *"Cloud
+Firestore API has not been used in project anchorchet before or it is
+disabled."* In the Firebase console: **Build → Firestore Database → Create
+database →** *Production mode* → pick the region closest to you. Region is
+permanent, so choose deliberately.
 
-### Deploying
+**2. Publish the security rules.** Easiest from a phone: console → **Firestore
+Database → Rules**, paste the whole contents of `firestore.rules`, **Publish**.
+No CLI needed. Do this before step 4 — a database left in test mode is readable
+by anyone with the URL.
 
-`npm run build` produces a static `dist/` that works on any static host —
-Firebase Hosting, Vercel, Netlify, Cloudflare Pages. Serve it over HTTPS: the
-home-screen install and notifications both require a secure origin.
+**3. Deploy hosting.** Two options:
 
-The app uses client-side routing, so configure the host to rewrite all paths to
-`/index.html` (Vercel and Netlify do this for SPAs; Firebase Hosting needs
-`"rewrites": [{ "source": "**", "destination": "/index.html" }]`).
+*From a computer:*
+```bash
+npm install -g firebase-tools
+firebase login
+firebase deploy          # firebase.json and .firebaserc are already committed
+```
+`firebase init` is not needed — the config is in the repo, and running it would
+offer to overwrite these files.
 
----
+*From a phone,* via the committed `.github/workflows/deploy.yml`:
+1. Firebase console → **Project settings → Service accounts → Generate new
+   private key** — downloads a JSON file.
+2. GitHub repo → **Settings → Secrets and variables → Actions → New repository
+   secret**, name it `FIREBASE_SERVICE_ACCOUNT`, paste the entire JSON.
+3. **Actions → Deploy → Run workflow.** Merging to `main` also deploys.
+
+That service-account JSON *is* a real secret — unlike the Firebase web config,
+it grants admin access. It belongs only in GitHub secrets, never in the repo.
+
+**4. Both of you sign in and pick opposite roles.** The accounts exist but have
+no profile document yet, so each of you gets the role picker on first sign-in.
+If either taps the wrong one, **Settings → Your side of the app** switches it —
+no data is lost.
+
+Then add it to your home screens: **Settings** in the app shows the install
+steps for whichever device you are on. On iPhone this must be done from Safari,
+and it is also what unlocks notifications.
+
+## Deploying elsewhere
+
+`npm run build` produces a static `dist/`. Any static host works — Vercel,
+Netlify and Cloudflare Pages connect straight to the GitHub repo with an OAuth
+login and no service account, which is the least painful route from a phone if
+Firebase Hosting turns into a fight. Serve over HTTPS: home-screen install and
+notifications both require a secure origin. Configure the host to rewrite all
+paths to `/index.html` for client-side routing (`firebase.json` already does).
 
 ## Multi-platform behaviour
 
@@ -156,8 +192,11 @@ shopping list, plus a ranked list of which single ball would unlock the most
 near-complete patterns.
 
 **Focus Mode.** A Spotify embed pinned to the Crochet and Bowling screens so she
-can change music without leaving the app. Paste any playlist link; the app ships
-with none, since guessed playlist IDs 404.
+can change music without leaving the app. Ships with your playlist
+(`37i9dQZF1EJCtsZ74SnoAi`) already loaded; paste any other share link to add
+more. Note that ID has the `37i9dQZF1E…` prefix Spotify uses for *personalised*
+mixes, which are usually tied to one account — if it shows as unavailable on her
+phone, swap it for a normal or collaborative playlist.
 
 ---
 

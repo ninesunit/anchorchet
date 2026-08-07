@@ -15,12 +15,27 @@ const KEY = 'anchorchet.playlists'
  * Player 2 needs to see, and keeping it out of the shared DB means no extra
  * security rule.
  */
+/**
+ * Seeded on first run so Focus Mode is playing something out of the box.
+ * Removing it sticks: an empty stored array is still a stored array, so the
+ * default only comes back after a full reset.
+ */
+const DEFAULT_PLAYLISTS = [
+  {
+    id: 'default-focus',
+    name: 'Focus',
+    kind: 'playlist',
+    embed: 'https://open.spotify.com/embed/playlist/37i9dQZF1EJCtsZ74SnoAi?utm_source=generator&theme=0',
+  },
+]
+
 function load() {
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? JSON.parse(raw) : []
+    // A missing key means "never configured" — an empty array means "cleared".
+    return raw === null ? DEFAULT_PLAYLISTS : JSON.parse(raw)
   } catch {
-    return []
+    return DEFAULT_PLAYLISTS
   }
 }
 

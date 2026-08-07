@@ -23,6 +23,7 @@ export function Settings() {
   const [savedAt, setSavedAt] = useState(0)
   const [permission, setPermission] = useState(notificationPermission())
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmRole, setConfirmRole] = useState(null)
 
   useEffect(() => {
     setName(profile?.name || '')
@@ -101,6 +102,33 @@ export function Settings() {
           {user?.email && (
             <p className="mt-3 text-center text-[12px] text-faint">{user.email}</p>
           )}
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle>Your side of the app</SectionTitle>
+        <Card className="p-4">
+          {/* Role is chosen once at sign-up and drives the whole navigation
+              tree, so there has to be a way back if it was picked wrong. */}
+          <Field label="Role" hint="Switching swaps your entire dashboard">
+            <Segmented
+              value={profile?.role ?? 'player1'}
+              onChange={(role) => {
+                if (role !== profile?.role) setConfirmRole(role)
+              }}
+              options={[
+                { value: 'player1', label: 'Player 1 · Crafter' },
+                { value: 'player2', label: 'Player 2 · Anchor' },
+              ]}
+            />
+          </Field>
+          <p className="mt-2 text-[12px] leading-snug text-muted">
+            You are <strong className="text-text">Player {profile?.role === 'player2' ? '2' : '1'}</strong>
+            {profile?.role === 'player2'
+              ? ' — you send quests, restock yarn and watch her scores.'
+              : ' — you track crochet, yarn and bowling.'}{' '}
+            You two should be on opposite roles.
+          </p>
         </Card>
       </section>
 
@@ -220,6 +248,19 @@ export function Settings() {
         <Icon name="logout" size={18} />
         Sign out
       </Button>
+
+      <ConfirmDialog
+        open={Boolean(confirmRole)}
+        onClose={() => setConfirmRole(null)}
+        onConfirm={() => saveProfile({ role: confirmRole })}
+        title={`Switch to Player ${confirmRole === 'player2' ? '2' : '1'}?`}
+        body={
+          confirmRole === 'player2'
+            ? 'Your app becomes the Anchor console: send quests, restock her yarn, watch her scores. Nothing already saved is deleted.'
+            : 'Your app becomes the crafter side: yarn stash, quest board, bowling sessions. Nothing already saved is deleted.'
+        }
+        confirmLabel="Switch"
+      />
 
       <ConfirmDialog
         open={confirmReset}

@@ -12,10 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Local secrets — .env.example is the tracked template
-.env
-.env.*
-!.env.example
+# .env IS tracked on purpose. Vite inlines every VITE_* var into the client
+# bundle at build time, so the Firebase web config is public no matter what —
+# the real access boundary is the UID allowlist in firestore.rules. Keeping it
+# in the repo is what lets CI build and deploy without extra secret wiring.
+# Anything genuinely secret (service accounts, API keys with write scope) must
+# go in GitHub Actions secrets, never here.
+.env.local
+.env.*.local
 
 # Editor
 .vscode/*

@@ -1,0 +1,62 @@
+# Deploys Anchorchet to Firebase Hosting.
+#
+# This exists so the app can be shipped without a terminal — the Firebase CLI
+# needs an interactive browser login, which is awkward from a phone. Pushing to
+# main deploys automatically; "Run workflow" deploys any branch on demand.
+#
+# One-time setup: add a repository secret named FIREBASE_SERVICE_ACCOUNT
+# containing the whole JSON from
+#   Firebase console -> Project settings -> Service accounts
+#   -> Generate new private key
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race each other to the same live channel.
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Write service account key
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is not set. See the comment at the top of this file."
+            exit 1
+          fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
+      - name: Deploy hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@14 deploy --only hosting --project anchorchet --non-interactive
+
+      # Kept separate and last: this step fails until the Firestore database
+      # has actually been created, and that must not stop the site shipping.
+      - name: Deploy Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@14 deploy --only firestore:rules --project anchorchet --non-interactive
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

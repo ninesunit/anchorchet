@@ -5,15 +5,16 @@ rules_version = '2';
 // against your project by default — without the allowlist below, a stranger
 // who found the app URL could sign up and read the whole database.
 //
-// SETUP: create the two accounts, copy their UIDs from
-// Firebase console -> Authentication -> Users, and paste them into MEMBERS.
+// The two accounts below are the only ones that can touch any data. To add or
+// change a member, copy the UID from
+// Firebase console -> Authentication -> Users and edit members() below.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function members() {
       return [
-        'PASTE_PLAYER_1_UID_HERE',
-        'PASTE_PLAYER_2_UID_HERE'
+        'ioVbP69SI6TRCdemMOiTVqp9jgG2', // Player 1 — the crafter
+        '3OH4lfeofPY5iZUQ81FyHp0Dbz82'  // Player 2 — the anchor
       ];
     }
 
