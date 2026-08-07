@@ -186,6 +186,26 @@ Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
 it syncs to both phones and replaces the placeholder everywhere. Real photos are
 not bundled — the game characters are somebody else's artwork.
 
+**Bowling arsenal.** Each ball carries a nickname, model, weight, coverstock,
+a role (strike / spare / backup) and a 16x16 pixel-art design she draws in-app —
+paint, fill, erase, mirror symmetry, undo, and seven generated presets.
+
+**Per-ball stats and the oil matcher.** Sessions are tagged with the balls
+thrown and the lane condition, which drives per-ball averages, spare conversion
+for the designated spare ball, and recommendations like "on Heavy Sport Oil your
+best average is 212 with The Purple Gem". Scores are logged per session, so a
+session's games credit every ball on it; the UI says so and flags how many
+sessions used more than one ball rather than implying per-throw precision. A
+recommendation is marked provisional until it has two sessions behind it.
+
+**The Cozy Alley.** A turn-based two-player pixel bowling minigame. Three taps —
+line, power, spin — then the ball curves down the lane. Her arsenal designs are
+the ball skins. Ten frames each, taken in turns across the two phones, with an
+optional wager. Pin physics were grid-searched against target outcomes rather
+than guessed: a flush pocket hit strikes about 40% of the time, a half-power
+roll 11%, a wide ball 1%. Scoring is real ten-pin, unit-checked against a 300
+game, all-spares 150 and all-nines 90.
+
 **Bowling.** Session-based, not frame-by-frame. A session is tagged Training or
 Tournament; you punch in each game total as it finishes and series total and
 average compute themselves. A session dated today gets a **live card** at the
@@ -281,11 +301,19 @@ crochet_quests/{id}         title, pattern_id, requested_by, status, reward,
 yarn_stash/{id}             color, weight, quantity, status: in_stock|low|empty,
                             brand, note
 bowling_sessions/{id}       type: training|tournament, date, location,
-                            game_scores[], series_total, session_average, note
+                            game_scores[], series_total, session_average, note,
+                            ball_ids[], oil_pattern,
+                            spares_converted, spare_attempts
 tournament_calendar/{id}    title, date, location, call_time, notes
 hall_of_fame/{id}           title, quest_id, kind: finished|in_use, caption,
                             image_url, uploaded_by, created_at
 pattern_refs/{patternId}    image_url, updated_at   (doc id IS the pattern id)
+bowling_arsenal/{id}        name, nickname, role, weight_lbs, coverstock,
+                            pixel_art_grid (256 hex strings), created_at
+bowling_matches/{id}        wager, status, turn, winner, created_at,
+                            rolls: {player1:[], player2:[]},
+                            standing: {player1:[], player2:[]},
+                            ball_ids: {player1, player2}
 hype_events/{id}            to, from, message, headline, session_id, seen,
                             created_at
 ```

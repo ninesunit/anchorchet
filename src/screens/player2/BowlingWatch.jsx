@@ -8,6 +8,8 @@ import { Icon } from '../../components/ui/Icon'
 import { Sparkline } from '../../components/ui/Sparkline'
 import { useData } from '../../context/DataContext'
 import { cx, formatDateLong, overallAverage, personalBest } from '../../lib/utils'
+import { Alley } from '../Alley'
+import { Arsenal } from '../player1/Arsenal'
 import { BowlingCalendar } from '../player1/BowlingCalendar'
 import { HypeModal } from './HypeButton'
 
@@ -38,13 +40,23 @@ export function BowlingWatch() {
         <Chip active={tab === 'sessions'} onClick={() => setTab('sessions')}>
           Sessions
         </Chip>
+        <Chip active={tab === 'arsenal'} onClick={() => setTab('arsenal')}>
+          Her arsenal
+        </Chip>
         <Chip active={tab === 'calendar'} onClick={() => setTab('calendar')}>
           Her calendar
+        </Chip>
+        <Chip active={tab === 'alley'} onClick={() => setTab('alley')}>
+          The Alley
         </Chip>
       </ChipRow>
 
       {tab === 'calendar' ? (
         <BowlingCalendar readOnly />
+      ) : tab === 'arsenal' ? (
+        <Arsenal readOnly />
+      ) : tab === 'alley' ? (
+        <Alley />
       ) : (
         <>
           <div className="mb-3 grid grid-cols-2 gap-2.5 xl:grid-cols-4">

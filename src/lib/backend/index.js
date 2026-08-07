@@ -20,4 +20,6 @@ export const COLLECTIONS = {
   hallOfFame: 'hall_of_fame',
   hype: 'hype_events',
   patternRefs: 'pattern_refs',
+  arsenal: 'bowling_arsenal',
+  matches: 'bowling_matches',
 }

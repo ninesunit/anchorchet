@@ -26,6 +26,8 @@ export function DataProvider({ children }) {
   const [hype, setHype] = useState([])
   // Keyed by pattern id, not an array — every lookup is "the photo for THIS pattern".
   const [patternRefs, setPatternRefs] = useState({})
+  const [arsenal, setArsenal] = useState([])
+  const [matches, setMatches] = useState([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export function DataProvider({ children }) {
       setHallOfFame([])
       setHype([])
       setPatternRefs({})
+      setArsenal([])
+      setMatches([])
       setReady(false)
       return
     }
@@ -67,6 +71,14 @@ export function DataProvider({ children }) {
       backend.db.subscribe(COLLECTIONS.patternRefs, (rows) =>
         setPatternRefs(Object.fromEntries(rows.map((r) => [r.id, r])))
       ),
+      backend.db.subscribe(COLLECTIONS.arsenal, (rows) =>
+        setArsenal(rows.sort((a, b) => (a.name || '').localeCompare(b.name || '')))
+      ),
+      backend.db.subscribe(COLLECTIONS.matches, (rows) =>
+        setMatches(
+          rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
+        )
+      ),
     ]
 
     setReady(true)
@@ -84,6 +96,8 @@ export function DataProvider({ children }) {
       hallOfFame,
       hype,
       patternRefs,
+      arsenal,
+      matches,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -124,6 +138,21 @@ export function DataProvider({ children }) {
       addTrophy: (data) => backend.db.add(c.hallOfFame, { created_at: new Date(), ...data }),
       removeTrophy: (id) => backend.db.remove(c.hallOfFame, id),
 
+      /* --------------------------------------------------- arsenal ---- */
+      addBall: (data) =>
+        backend.db.add(c.arsenal, {
+          role: 'strike_ball',
+          created_at: new Date(),
+          ...data,
+        }),
+      updateBall: (id, patch) => backend.db.update(c.arsenal, id, patch),
+      removeBall: (id) => backend.db.remove(c.arsenal, id),
+
+      /* --------------------------------------------------- matches ---- */
+      addMatch: (data) => backend.db.add(c.matches, { created_at: new Date(), ...data }),
+      updateMatch: (id, patch) => backend.db.update(c.matches, id, patch),
+      removeMatch: (id) => backend.db.remove(c.matches, id),
+
       /* -------------------------------------------- pattern reference -- */
       // Doc id IS the pattern id, so saving twice replaces rather than piles up.
       setPatternRef: (patternId, data) =>
@@ -135,7 +164,7 @@ export function DataProvider({ children }) {
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

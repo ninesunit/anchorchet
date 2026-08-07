@@ -7,7 +7,9 @@ import { Field, Input, Segmented, Textarea } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
 import { Sparkline } from '../../components/ui/Sparkline'
+import { PixelBall } from '../../components/PixelBall'
 import { useData } from '../../context/DataContext'
+import { OIL_ORDER, OIL_PATTERNS, ROLES } from '../../data/arsenal'
 import {
   cx,
   formatDateLong,
@@ -35,7 +37,7 @@ const localDateValue = (d) => {
 }
 
 export function BowlingSessions() {
-  const { sessions, addSession, updateSession, removeSession } = useData()
+  const { sessions, arsenal, addSession, updateSession, removeSession } = useData()
 
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -120,6 +122,7 @@ export function BowlingSessions() {
                 <SessionCard
                   key={session.id}
                   session={session}
+                  balls={arsenal}
                   onEdit={() => setEditing(session)}
                 />
               ))}
@@ -134,6 +137,7 @@ export function BowlingSessions() {
 
       <SessionEditor
         session={editing}
+        arsenal={arsenal}
         onClose={() => setEditing(null)}
         onSave={async (data) => {
           if (editing?.id) await updateSession(editing.id, data)
@@ -255,7 +259,7 @@ function GameChip({ index, score }) {
   )
 }
 
-function SessionCard({ session, onEdit }) {
+function SessionCard({ session, balls, onEdit }) {
   const scores = session.game_scores || []
   return (
     <Card as="button" interactive onClick={onEdit} className="w-full p-4 text-left">
@@ -292,6 +296,26 @@ function SessionCard({ session, onEdit }) {
         </div>
       </div>
 
+      {(session.oil_pattern || (session.ball_ids || []).length > 0) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {session.oil_pattern && OIL_PATTERNS[session.oil_pattern] && (
+            <Badge>{OIL_PATTERNS[session.oil_pattern].label}</Badge>
+          )}
+          {(session.ball_ids || []).map((id) => {
+            const ball = balls?.find((b) => b.id === id)
+            return ball ? (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-muted"
+              >
+                <PixelBall grid={ball.pixel_art_grid} size={14} holes={false} ring={false} />
+                {ball.nickname || ball.name}
+              </span>
+            ) : null
+          })}
+        </div>
+      )}
+
       {session.note && (
         <p className="mt-2.5 text-[13px] leading-snug text-muted">{session.note}</p>
       )}
@@ -299,7 +323,7 @@ function SessionCard({ session, onEdit }) {
   )
 }
 
-function SessionEditor({ session, onClose, onSave, onDelete }) {
+function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
   const open = Boolean(session)
   const isEdit = Boolean(session?.id)
 
@@ -308,6 +332,10 @@ function SessionEditor({ session, onClose, onSave, onDelete }) {
   const [location, setLocation] = useState('')
   const [scores, setScores] = useState([''])
   const [note, setNote] = useState('')
+  const [ballIds, setBallIds] = useState([])
+  const [oil, setOil] = useState('house')
+  const [sparesMade, setSparesMade] = useState('')
+  const [spareTries, setSpareTries] = useState('')
   const [busy, setBusy] = useState(false)
 
   const [seed, setSeed] = useState(null)
@@ -318,6 +346,10 @@ function SessionEditor({ session, onClose, onSave, onDelete }) {
     setLocation(session.location || '')
     setScores(session.game_scores?.length ? session.game_scores.map(String) : [''])
     setNote(session.note || '')
+    setBallIds(session.ball_ids || [])
+    setOil(session.oil_pattern || 'house')
+    setSparesMade(session.spares_converted != null ? String(session.spares_converted) : '')
+    setSpareTries(session.spare_attempts != null ? String(session.spare_attempts) : '')
   }
   if (!open && seed !== null) setSeed(null)
 
@@ -342,6 +374,12 @@ function SessionEditor({ session, onClose, onSave, onDelete }) {
       series_total: total,
       session_average: average,
       note: note.trim(),
+      ball_ids: ballIds,
+      oil_pattern: oil,
+      // Left blank means "not tracked" rather than zero, so an untracked
+      // session cannot drag the spare percentage down.
+      spares_converted: sparesMade === '' ? null : Number(sparesMade),
+      spare_attempts: spareTries === '' ? null : Number(spareTries),
     })
     setBusy(false)
   }
@@ -461,6 +499,100 @@ function SessionEditor({ session, onClose, onSave, onDelete }) {
             </p>
           </div>
         </div>
+
+        <Field label="Lane condition" hint="powers the oil matcher">
+          <div className="grid grid-cols-2 gap-2">
+            {OIL_ORDER.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOil(id)}
+                aria-pressed={oil === id}
+                className={cx(
+                  'min-h-11 rounded-xl border-2 px-2 text-[13px] font-bold transition',
+                  oil === id
+                    ? 'border-ember bg-ember-soft/40 text-ember'
+                    : 'border-border bg-surface text-muted hover:border-border-strong'
+                )}
+              >
+                {OIL_PATTERNS[id].label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {arsenal.length > 0 && (
+          <Field
+            label="Balls you threw"
+            hint={ballIds.length ? `${ballIds.length} selected` : 'tap to select'}
+          >
+            <div className="flex flex-col gap-2">
+              {arsenal.map((ball) => {
+                const on = ballIds.includes(ball.id)
+                const role = ROLES[ball.role] ?? ROLES.strike_ball
+                return (
+                  <button
+                    key={ball.id}
+                    type="button"
+                    onClick={() =>
+                      setBallIds(
+                        on ? ballIds.filter((x) => x !== ball.id) : [...ballIds, ball.id]
+                      )
+                    }
+                    aria-pressed={on}
+                    className={cx(
+                      'flex min-h-12 items-center gap-3 rounded-xl border-2 px-3 text-left transition',
+                      on
+                        ? 'border-ember bg-ember-soft/40'
+                        : 'border-border bg-surface hover:border-border-strong'
+                    )}
+                  >
+                    <PixelBall grid={ball.pixel_art_grid} size={30} holes={false} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-bold">
+                        {ball.nickname || ball.name}
+                      </span>
+                      <span className="block text-[11px]" style={{ color: role.color }}>
+                        {role.short}
+                      </span>
+                    </span>
+                    {on && <Icon name="check" size={18} className="text-ember" strokeWidth={2.6} />}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-1.5 text-[12px] leading-snug text-faint">
+              Tagging one ball gives exact per-ball averages. Tag two and the games count toward
+              both.
+            </p>
+          </Field>
+        )}
+
+        <Field label="Spares" hint="optional — powers your conversion rate">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              value={sparesMade}
+              onChange={(e) => setSparesMade(e.target.value)}
+              placeholder="made"
+              className="text-center font-bold"
+              aria-label="Spares converted"
+            />
+            <span className="text-[13px] font-bold text-faint">of</span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              value={spareTries}
+              onChange={(e) => setSpareTries(e.target.value)}
+              placeholder="chances"
+              className="text-center font-bold"
+              aria-label="Spare attempts"
+            />
+          </div>
+        </Field>
 
         <Field label="Note" hint="optional" htmlFor="session-note">
           <Textarea

@@ -7,11 +7,13 @@ import { Chip, ChipRow } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { useData } from '../../context/DataContext'
 import { FAMILY_LABEL, FAMILY_SWATCH, yarnSwatch } from '../../data/colors'
-import { stashSummary, suggestPurchases } from '../../data/engine'
+import { questNeeds, stashSummary, suggestPurchases } from '../../data/engine'
+import { PATTERNS_BY_ID } from '../../data/patterns'
+import { WEIGHTS } from '../../data/colors'
 import { cx } from '../../lib/utils'
 
 export function SupplyDrop() {
-  const { stash, updateYarn } = useData()
+  const { stash, quests, updateYarn, addYarn } = useData()
 
   const [tab, setTab] = useState('list')
   const [copied, setCopied] = useState(false)
@@ -26,9 +28,20 @@ export function SupplyDrop() {
     [stash]
   )
   const suggestions = useMemo(() => suggestPurchases(stash), [stash])
+  // Colours she has never owned, pulled from quests she has taken on. These
+  // cannot show up as "empty" rows because there is no stash entry to empty.
+  const needs = useMemo(
+    () => questNeeds(quests, stash, PATTERNS_BY_ID),
+    [quests, stash]
+  )
 
   async function copyList() {
-    const lines = needed.map((y) => `- ${y.color} (${y.weight})${y.brand ? ` — ${y.brand}` : ''}`)
+    const lines = [
+      ...needed.map((y) => `- ${y.color} (${y.weight})${y.brand ? ` — ${y.brand}` : ''}`),
+      ...needs.map(
+        (n) => `- ${FAMILY_LABEL[n.family]} (${n.weight}) x${n.skeins} — for ${n.forQuests[0].title}`
+      ),
+    ]
     const text = ['Anchorchet supply drop', ...lines].join('\n')
     try {
       await navigator.clipboard.writeText(text)
@@ -61,7 +74,7 @@ export function SupplyDrop() {
 
       {tab === 'list' && (
         <section>
-          {needed.length === 0 ? (
+          {needed.length === 0 && needs.length === 0 ? (
             <EmptyState
               icon={<Icon name="cart" size={30} />}
               title="Nothing to restock"
@@ -123,6 +136,52 @@ export function SupplyDrop() {
                 list updates before the yarn even arrives.
               </p>
             </>
+          )}
+
+          {needs.length > 0 && (
+            <div className="mt-7">
+              <SectionTitle>Needed for quests · {needs.length}</SectionTitle>
+              <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2">
+                {needs.map((need) => (
+                  <Card
+                    key={`${need.family}-${need.weight}`}
+                    className="flex items-center gap-3 border-ember/30 p-3.5"
+                  >
+                    <ColorDot color={FAMILY_SWATCH[need.family]} size="lg" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold leading-tight">
+                        {FAMILY_LABEL[need.family]} · {need.weight}
+                      </p>
+                      <p className="mt-0.5 truncate text-[12px] text-muted">
+                        {need.skeins} ball{need.skeins > 1 ? 's' : ''} for{' '}
+                        {need.forQuests.map((q) => q.title).join(', ')}
+                      </p>
+                    </div>
+                    <Button
+                      variant="mint"
+                      size="sm"
+                      onClick={() =>
+                        addYarn({
+                          color: FAMILY_LABEL[need.family],
+                          weight: WEIGHTS.includes(need.weight) ? need.weight : 'DK',
+                          quantity: need.skeins,
+                          status: 'in_stock',
+                          note: `Supply drop for ${need.forQuests[0].title}`,
+                        })
+                      }
+                      title="Add straight to her stash"
+                    >
+                      <Icon name="plus" size={15} strokeWidth={2.6} />
+                      Bought
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+              <p className="mt-3 px-1 text-[12px] leading-snug text-faint">
+                She does not own these colours at all. Buying one drops it straight into her
+                stash, which can flip the quest to &ldquo;ready to craft&rdquo; on her side.
+              </p>
+            </div>
           )}
         </section>
       )}

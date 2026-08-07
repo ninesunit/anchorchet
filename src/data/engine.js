@@ -194,3 +194,47 @@ export function stashSummary(stash) {
     low: stash.filter((s) => s.status === 'low').length,
   }
 }
+
+/**
+ * Colours she needs for quests she has actually taken on.
+ *
+ * Distinct from the "empty" list: those are balls she owns and used up, whereas
+ * these are colours she has never had, so they cannot exist as a stash row.
+ * Accepting a quest is what puts them on Player 2's buying list.
+ */
+export function questNeeds(quests, stash, patternsById) {
+  const live = quests.filter(
+    (q) => q.pattern_id && ['pending', 'accepted', 'in_progress'].includes(q.status)
+  )
+
+  const needs = new Map()
+  for (const quest of live) {
+    const pattern = patternsById[quest.pattern_id]
+    if (!pattern) continue
+    for (const slot of evaluatePattern(pattern, stash).missing) {
+      // The slot accepts several families; the first is the canonical ask.
+      const family = slot.families[0]
+      const key = `${family}|${pattern.weight}`
+      const entry = needs.get(key) || {
+        family,
+        weight: pattern.weight,
+        alternatives: slot.families,
+        forQuests: [],
+        skeins: 0,
+      }
+      entry.skeins = Math.max(entry.skeins, slot.need || 1)
+      if (!entry.forQuests.some((q) => q.id === quest.id)) {
+        entry.forQuests.push({ id: quest.id, title: quest.title, status: quest.status })
+      }
+      needs.set(key, entry)
+    }
+  }
+
+  // Accepted work outranks a bounty she has not picked up yet.
+  const rank = { in_progress: 0, accepted: 1, pending: 2 }
+  return [...needs.values()].sort((a, b) => {
+    const ra = Math.min(...a.forQuests.map((q) => rank[q.status] ?? 3))
+    const rb = Math.min(...b.forQuests.map((q) => rank[q.status] ?? 3))
+    return ra - rb || b.forQuests.length - a.forQuests.length
+  })
+}

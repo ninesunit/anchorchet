@@ -24,6 +24,8 @@ export const SUBNAV = {
   ],
   '/bowling': [
     { to: '/bowling/sessions', label: 'Sessions' },
+    { to: '/bowling/arsenal', label: 'Arsenal' },
     { to: '/bowling/calendar', label: 'Calendar' },
+    { to: '/bowling/alley', label: 'The Alley' },
   ],
 }

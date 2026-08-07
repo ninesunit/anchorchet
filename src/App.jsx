@@ -16,6 +16,8 @@ import { YarnStash } from './screens/player1/YarnStash'
 import { BowlingSection } from './screens/player1/BowlingSection'
 import { BowlingSessions } from './screens/player1/BowlingSessions'
 import { BowlingCalendar } from './screens/player1/BowlingCalendar'
+import { Arsenal } from './screens/player1/Arsenal'
+import { Alley } from './screens/Alley'
 import { FocusMode } from './screens/player1/FocusMode'
 
 import { AnchorHome } from './screens/player2/AnchorHome'
@@ -66,7 +68,9 @@ function Player1Routes() {
         <Route path="bowling" element={<BowlingSection />}>
           <Route index element={<Navigate to="sessions" replace />} />
           <Route path="sessions" element={<BowlingSessions />} />
+          <Route path="arsenal" element={<Arsenal />} />
           <Route path="calendar" element={<BowlingCalendar />} />
+          <Route path="alley" element={<Alley />} />
         </Route>
 
         <Route path="fame" element={<HallOfFame />} />
