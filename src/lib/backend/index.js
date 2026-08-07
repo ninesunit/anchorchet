@@ -19,4 +19,5 @@ export const COLLECTIONS = {
   calendar: 'tournament_calendar',
   hallOfFame: 'hall_of_fame',
   hype: 'hype_events',
+  patternRefs: 'pattern_refs',
 }

@@ -39,6 +39,7 @@ service cloud.firestore {
     match /tournament_calendar/{id} { allow read, write: if isMember(); }
     match /hall_of_fame/{id}      { allow read, write: if isMember(); }
     match /hype_events/{id}       { allow read, write: if isMember(); }
+    match /pattern_refs/{id}      { allow read, write: if isMember(); }
 
     // Anything not listed above is denied.
     match /{document=**} {

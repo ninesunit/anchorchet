@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
 
+import { PatternThumb, referenceLinks } from '../../components/PatternThumb'
 import { Badge, ColorDot, TierBadge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { ImagePicker } from '../../components/ui/ImagePicker'
 import { Card, EmptyState, Stat } from '../../components/ui/Card'
 import { Chip, ChipRow, Input } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { Modal } from '../../components/ui/Modal'
 import { useData } from '../../context/DataContext'
-import { FAMILY_LABEL, FAMILY_SWATCH, familySwatch } from '../../data/colors'
+import { FAMILY_LABEL, FAMILY_SWATCH, yarnSwatch } from '../../data/colors'
 import { evaluateAll } from '../../data/engine'
 import { SERIES, TIERS } from '../../data/patterns'
 import { cx } from '../../lib/utils'
@@ -14,7 +17,7 @@ import { cx } from '../../lib/utils'
 const SERIES_FILTERS = [{ id: '', label: 'Everything' }, ...Object.values(SERIES)]
 
 export function ReadyToCraft() {
-  const { stash } = useData()
+  const { stash, patternRefs, setPatternRef, removePatternRef } = useData()
 
   const [series, setSeries] = useState('')
   const [tier, setTier] = useState('')
@@ -102,13 +105,20 @@ export function ReadyToCraft() {
             <PatternCard
               key={result.pattern.id}
               result={result}
+              photo={patternRefs[result.pattern.id]?.image_url}
               onClick={() => setDetail(result)}
             />
           ))}
         </div>
       )}
 
-      <PatternDetail result={detail} onClose={() => setDetail(null)} />
+      <PatternDetail
+        result={detail}
+        photo={detail ? patternRefs[detail.pattern.id]?.image_url : undefined}
+        onSavePhoto={(image_url) => setPatternRef(detail.pattern.id, { image_url })}
+        onClearPhoto={() => removePatternRef(detail.pattern.id)}
+        onClose={() => setDetail(null)}
+      />
     </div>
   )
 }
@@ -119,7 +129,7 @@ const STATUS_META = {
   blocked: { label: 'Needs supplies', tone: 'neutral', ring: 'border-border' },
 }
 
-function PatternCard({ result, onClick }) {
+function PatternCard({ result, photo, onClick }) {
   const { pattern, status, slots, substitutions } = result
   const meta = STATUS_META[status]
 
@@ -130,14 +140,23 @@ function PatternCard({ result, onClick }) {
       onClick={onClick}
       className={cx('w-full p-3.5', meta.ring, status === 'ready' && 'bg-mint-soft/20')}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate font-bold leading-tight">{pattern.name}</h3>
+      <div className="flex items-start gap-3">
+        <PatternThumb
+          pattern={pattern}
+          slots={slots}
+          photo={photo}
+          className="w-20 shrink-0 rounded-xl border border-border"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="min-w-0 flex-1 truncate font-bold leading-tight">{pattern.name}</h3>
+            <TierBadge tier={pattern.tier} showLabel={false} className="mt-1.5" />
+          </div>
           <p className="mt-0.5 text-[12px] text-faint">
-            {SERIES[pattern.series].label} · {pattern.weight} · {pattern.hook} · ~{pattern.hours}h
+            {SERIES[pattern.series].label} · {pattern.weight} · ~{pattern.hours}h
           </p>
+          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-muted">{pattern.blurb}</p>
         </div>
-        <TierBadge tier={pattern.tier} className="mt-0.5" />
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -154,7 +173,7 @@ function PatternCard({ result, onClick }) {
             <ColorDot
               color={
                 slot.matched
-                  ? familySwatch(slot.stash.color)
+                  ? yarnSwatch(slot.stash)
                   : FAMILY_SWATCH[slot.families[0]] || 'var(--border-strong)'
               }
               size="sm"
@@ -178,7 +197,7 @@ function PatternCard({ result, onClick }) {
   )
 }
 
-function PatternDetail({ result, onClose }) {
+function PatternDetail({ result, photo, onSavePhoto, onClearPhoto, onClose }) {
   if (!result) return <Modal open={false} onClose={onClose} title="" />
 
   const { pattern, status, slots } = result
@@ -192,6 +211,21 @@ function PatternDetail({ result, onClose }) {
       subtitle={`${SERIES[pattern.series].label} · ${pattern.hook} hook · about ${pattern.hours} hours`}
     >
       <div className="flex flex-col gap-4 pb-3">
+        <PatternThumb
+          pattern={pattern}
+          slots={slots}
+          photo={photo}
+          ratio="wide"
+          className="rounded-2xl border border-border"
+        />
+
+        <ReferencePanel
+          pattern={pattern}
+          photo={photo}
+          onSavePhoto={onSavePhoto}
+          onClearPhoto={onClearPhoto}
+        />
+
         <div className="flex flex-wrap items-center gap-2">
           <TierBadge tier={pattern.tier} />
           <Badge tone={meta.tone} dot={status !== 'blocked'}>
@@ -245,7 +279,7 @@ function SlotRow({ slot }) {
       <ColorDot
         color={
           slot.matched
-            ? familySwatch(slot.stash.color)
+            ? yarnSwatch(slot.stash)
             : FAMILY_SWATCH[slot.families[0]] || 'var(--border-strong)'
         }
         size="lg"
@@ -273,6 +307,103 @@ function SlotRow({ slot }) {
           {accepted}
         </span>
       )}
+    </div>
+  )
+}
+
+/**
+ * The bit that actually answers "what does it look like?".
+ *
+ * Real photos cannot be bundled — the game characters are somebody else's
+ * artwork — so this does the two things that work instead: send her straight to
+ * real examples, and let either player pin a photo to the pattern permanently.
+ * A pinned photo syncs to both phones and replaces the placeholder everywhere.
+ */
+function ReferencePanel({ pattern, photo, onSavePhoto, onClearPhoto }) {
+  const [picking, setPicking] = useState(false)
+  const [error, setError] = useState('')
+
+  // Pinning writes to the pattern_refs collection. If the deployed security
+  // rules predate that collection the write is rejected, and without this the
+  // failure would be completely silent — the photo would just never appear.
+  async function save(url) {
+    setError('')
+    try {
+      await onSavePhoto(url)
+      setPicking(false)
+    } catch (err) {
+      const denied = /permission|insufficient/i.test(err?.message || '')
+      setError(
+        denied
+          ? 'Firestore rejected this. The pattern_refs collection needs adding to your security rules — see the README.'
+          : err?.message || 'Could not save that photo.'
+      )
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface-2/50 p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-faint">
+          <Icon name="image" size={14} />
+          Reference
+        </h3>
+        {photo ? (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>
+              Replace
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClearPhoto}>
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <Button variant="soft" size="sm" onClick={() => setPicking(true)}>
+            <Icon name="plus" size={15} strokeWidth={2.4} />
+            Pin a photo
+          </Button>
+        )}
+      </div>
+
+      {picking && (
+        <ImagePicker
+          className="mt-3"
+          value=""
+          label="Choose a reference photo"
+          hint="Saves for both of you"
+          onChange={(url) => {
+            if (url) save(url)
+            else setPicking(false)
+          }}
+        />
+      )}
+
+      {error && (
+        <p className="mt-2.5 rounded-lg bg-ember-soft px-3 py-2 text-[12px] font-medium leading-snug text-ember">
+          {error}
+        </p>
+      )}
+
+      <p className="mt-2.5 text-[12px] leading-snug text-muted">
+        {photo
+          ? 'This photo is pinned to the pattern and shows on both your phones.'
+          : 'No photo pinned yet. Open one of these, screenshot the version you like, then pin it.'}
+      </p>
+
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {referenceLinks(pattern).map((link) => (
+          <a
+            key={link.label}
+            href={link.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 text-[13px] font-semibold text-muted transition hover:text-text"
+          >
+            {link.label}
+            <Icon name="share" size={13} />
+          </a>
+        ))}
+      </div>
     </div>
   )
 }

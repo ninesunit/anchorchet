@@ -6,7 +6,7 @@ import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
 import { Chip, ChipRow } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { useData } from '../../context/DataContext'
-import { FAMILY_LABEL, FAMILY_SWATCH, familySwatch } from '../../data/colors'
+import { FAMILY_LABEL, FAMILY_SWATCH, yarnSwatch } from '../../data/colors'
 import { stashSummary, suggestPurchases } from '../../data/engine'
 import { cx } from '../../lib/utils'
 
@@ -88,7 +88,7 @@ export function SupplyDrop() {
               <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2">
                 {needed.map((yarn) => (
                   <Card key={yarn.id} className="flex items-center gap-3 p-3.5">
-                    <ColorDot color={familySwatch(yarn.color)} size="lg" />
+                    <ColorDot color={yarnSwatch(yarn)} size="lg" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold leading-tight">{yarn.color}</p>
                       <p className="mt-0.5 truncate text-[12px] text-muted">
@@ -194,7 +194,7 @@ export function SupplyDrop() {
             <Card className="divide-y divide-border">
               {stash.map((yarn) => (
                 <div key={yarn.id} className="flex items-center gap-3 px-3.5 py-3">
-                  <ColorDot color={familySwatch(yarn.color)} />
+                  <ColorDot color={yarnSwatch(yarn)} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-bold leading-tight">{yarn.color}</p>
                     <p className="text-[12px] text-faint">

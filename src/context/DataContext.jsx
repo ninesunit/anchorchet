@@ -24,6 +24,8 @@ export function DataProvider({ children }) {
   const [events, setEvents] = useState([])
   const [hallOfFame, setHallOfFame] = useState([])
   const [hype, setHype] = useState([])
+  // Keyed by pattern id, not an array — every lookup is "the photo for THIS pattern".
+  const [patternRefs, setPatternRefs] = useState({})
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export function DataProvider({ children }) {
       setEvents([])
       setHallOfFame([])
       setHype([])
+      setPatternRefs({})
       setReady(false)
       return
     }
@@ -61,6 +64,9 @@ export function DataProvider({ children }) {
           rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
         )
       ),
+      backend.db.subscribe(COLLECTIONS.patternRefs, (rows) =>
+        setPatternRefs(Object.fromEntries(rows.map((r) => [r.id, r])))
+      ),
     ]
 
     setReady(true)
@@ -77,6 +83,7 @@ export function DataProvider({ children }) {
       events,
       hallOfFame,
       hype,
+      patternRefs,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -117,12 +124,18 @@ export function DataProvider({ children }) {
       addTrophy: (data) => backend.db.add(c.hallOfFame, { created_at: new Date(), ...data }),
       removeTrophy: (id) => backend.db.remove(c.hallOfFame, id),
 
+      /* -------------------------------------------- pattern reference -- */
+      // Doc id IS the pattern id, so saving twice replaces rather than piles up.
+      setPatternRef: (patternId, data) =>
+        backend.db.set(c.patternRefs, patternId, { ...data, updated_at: new Date() }),
+      removePatternRef: (patternId) => backend.db.remove(c.patternRefs, patternId),
+
       /* ------------------------------------------------------------ hype -- */
       sendHype: (data) =>
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

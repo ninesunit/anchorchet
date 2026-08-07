@@ -173,10 +173,18 @@ one lone ball of cream twice. Weights one step apart are allowed as a flagged
 substitution. When a pattern fails it says why — wrong colour, not enough balls,
 or wrong weight.
 
-**Yarn stash.** Colour, weight, ball count, brand, status. Free-text colour
-names ("Dusty Rose", "cobalt") are normalised into colour families so matching
-works without a dropdown. Marking something empty pushes it to Player 2's
-shopping list.
+**Yarn stash.** Colour, weight, ball count, brand, status. A 36-swatch picker
+covers every colour family; each swatch sets the colour *name* as well as the
+shade, because the engine matches on names — a bare hex would look right and
+silently never match anything. Free text still works and is normalised into a
+family. An eyedropper fine-tunes the exact shade for display only. Marking
+something empty pushes it to Player 2's shopping list.
+
+**Pattern references.** Every pattern carries a tinted archetype silhouette
+drawn from the yarn that actually matched, plus one-tap links to Google Images,
+Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
+it syncs to both phones and replaces the placeholder everywhere. Real photos are
+not bundled — the game characters are somebody else's artwork.
 
 **Bowling.** Session-based, not frame-by-frame. A session is tagged Training or
 Tournament; you punch in each game total as it finishes and series total and
@@ -277,6 +285,7 @@ bowling_sessions/{id}       type: training|tournament, date, location,
 tournament_calendar/{id}    title, date, location, call_time, notes
 hall_of_fame/{id}           title, quest_id, kind: finished|in_use, caption,
                             image_url, uploaded_by, created_at
+pattern_refs/{patternId}    image_url, updated_at   (doc id IS the pattern id)
 hype_events/{id}            to, from, message, headline, session_id, seen,
                             created_at
 ```

@@ -7,7 +7,13 @@ import { Chip, ChipRow, Field, Input, Select, Textarea } from '../../components/
 import { Icon } from '../../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
 import { useData } from '../../context/DataContext'
-import { colorFamily, FAMILY_LABEL, familySwatch, WEIGHTS } from '../../data/colors'
+import {
+  colorFamily,
+  FAMILY_LABEL,
+  WEIGHTS,
+  YARN_SWATCHES,
+  yarnSwatch,
+} from '../../data/colors'
 import { stashSummary } from '../../data/engine'
 import { cx } from '../../lib/utils'
 
@@ -154,7 +160,7 @@ function YarnRow({ yarn, onEdit, onQuantity }) {
 
   return (
     <Card className="flex items-center gap-3 p-3">
-      <ColorDot color={familySwatch(yarn.color)} size="lg" />
+      <ColorDot color={yarnSwatch(yarn)} size="lg" />
 
       <button onClick={onEdit} className="min-w-0 flex-1 text-left">
         <p className="truncate font-bold leading-tight">{yarn.color}</p>
@@ -196,6 +202,7 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
   const isEdit = Boolean(yarn?.id)
 
   const [color, setColor] = useState('')
+  const [hex, setHex] = useState('')
   const [weight, setWeight] = useState('DK')
   const [quantity, setQuantity] = useState('1')
   const [status, setStatus] = useState('in_stock')
@@ -208,6 +215,7 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
   if (open && seed !== yarn) {
     setSeed(yarn)
     setColor(yarn.color || '')
+    setHex(yarn.hex || '')
     setWeight(yarn.weight || 'DK')
     setQuantity(String(yarn.quantity ?? 1))
     setStatus(yarn.status || 'in_stock')
@@ -224,6 +232,7 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
     const qty = Math.max(0, Number(quantity) || 0)
     await onSave({
       color: color.trim(),
+      hex,
       weight,
       quantity: qty,
       status: qty === 0 ? 'empty' : status,
@@ -277,7 +286,7 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
           htmlFor="yarn-color"
         >
           <div className="flex items-center gap-2.5">
-            <ColorDot color={familySwatch(color)} size="lg" />
+            <ColorDot color={yarnSwatch({ color, hex })} size="lg" />
             <Input
               id="yarn-color"
               value={color}
@@ -287,12 +296,23 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
               autoCapitalize="words"
             />
           </div>
+
           {color.trim() && !family && (
             <p className="mt-1.5 text-[12px] leading-snug text-amber">
-              The craft engine matches on colour names — try including a basic colour word like
-              &ldquo;blue&rdquo; or &ldquo;cream&rdquo; so this ball gets counted.
+              The craft engine matches on colour names — pick one below, or include a basic colour
+              word like &ldquo;blue&rdquo; or &ldquo;cream&rdquo; so this ball gets counted.
             </p>
           )}
+
+          <SwatchPicker
+            color={color}
+            hex={hex}
+            onPick={(swatch) => {
+              setColor(swatch.name)
+              setHex(swatch.hex)
+            }}
+            onHex={setHex}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -369,5 +389,60 @@ function YarnEditor({ yarn, onClose, onSave, onDelete }) {
         <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
       </form>
     </Modal>
+  )
+}
+
+/**
+ * Tap-to-pick colour palette.
+ *
+ * Picking sets the *name* as well as the shade, because the craft engine
+ * matches on names — a bare hex would look right and silently never match a
+ * pattern. The eyedropper is display-only polish on top of that.
+ */
+function SwatchPicker({ color, hex, onPick, onHex }) {
+  const selected = YARN_SWATCHES.find((s) => s.name.toLowerCase() === color.trim().toLowerCase())
+
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-surface-2/50 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
+        <span className="text-[12px] font-semibold text-muted">Pick a colour</span>
+        <label className="flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-muted">
+          Exact shade
+          <input
+            type="color"
+            value={hex || '#c9c2d1'}
+            onChange={(e) => onHex(e.target.value)}
+            aria-label="Fine-tune the exact shade"
+            className="size-7 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+          />
+        </label>
+      </div>
+
+      <div className="scroll-y grid max-h-44 grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {YARN_SWATCHES.map((swatch) => {
+          const active = selected?.name === swatch.name
+          return (
+            <button
+              key={swatch.name}
+              type="button"
+              onClick={() => onPick(swatch)}
+              aria-pressed={active}
+              className={cx(
+                'flex min-h-10 items-center gap-2 rounded-lg border px-2 text-left text-[12px] font-semibold transition',
+                active
+                  ? 'border-ember bg-ember-soft/50 text-text'
+                  : 'border-transparent bg-surface text-muted hover:border-border-strong'
+              )}
+            >
+              <span
+                className="size-5 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/15"
+                style={{ background: swatch.hex }}
+              />
+              <span className="truncate">{swatch.name}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

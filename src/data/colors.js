@@ -132,3 +132,57 @@ export function weightFit(stashWeight, patternWeight) {
   if (gap === 1) return 'substitute'
   return 'no'
 }
+
+/* ------------------------------------------------------------- swatches -- */
+
+/**
+ * Tap-to-pick palette for the Add Yarn sheet.
+ *
+ * Every name deliberately contains a word `colorFamily()` recognises, so
+ * picking from here can never produce the "unrecognised colour" state that
+ * makes a ball invisible to the craft engine. `hex` is only ever used for
+ * display — matching still runs on the name.
+ */
+export const YARN_SWATCHES = [
+  { name: 'Cherry Red', hex: '#d62828' },
+  { name: 'Burgundy', hex: '#7b2d3b' },
+  { name: 'Dusty Rose', hex: '#d98098' },
+  { name: 'Bubblegum Pink', hex: '#f48fb1' },
+  { name: 'Blush', hex: '#f2c4c8' },
+  { name: 'Terracotta', hex: '#c96f4a' },
+  { name: 'Pumpkin Orange', hex: '#e8833a' },
+  { name: 'Mustard Yellow', hex: '#d9a326' },
+  { name: 'Buttercup', hex: '#f6d365' },
+  { name: 'Sage Green', hex: '#9caf88' },
+  { name: 'Forest Green', hex: '#2f6b4f' },
+  { name: 'Lime Green', hex: '#a8c66c' },
+  { name: 'Deep Teal', hex: '#17877f' },
+  { name: 'Mint', hex: '#9fdfcd' },
+  { name: 'Turquoise', hex: '#3ec6c0' },
+  { name: 'Cobalt Blue', hex: '#2f6fd0' },
+  { name: 'Navy Blue', hex: '#23345c' },
+  { name: 'Baby Blue', hex: '#a8c8e8' },
+  { name: 'Denim', hex: '#5b7fa6' },
+  { name: 'Lavender', hex: '#b39ddb' },
+  { name: 'Plum', hex: '#6b3f6e' },
+  { name: 'Violet', hex: '#8257c9' },
+  { name: 'Chocolate Brown', hex: '#5b3a26' },
+  { name: 'Coffee', hex: '#7a5238' },
+  { name: 'Camel Tan', hex: '#c8a678' },
+  { name: 'Beige', hex: '#d9c7ac' },
+  { name: 'Caramel', hex: '#b9814a' },
+  { name: 'Cream', hex: '#f0e4cf' },
+  { name: 'Ivory', hex: '#f5efe2' },
+  { name: 'White', hex: '#fbfbfb' },
+  { name: 'Off White', hex: '#f4f2ec' },
+  { name: 'Heather Grey', hex: '#a8a4a0' },
+  { name: 'Silver Grey', hex: '#cfd2d6' },
+  { name: 'Charcoal Grey', hex: '#55555c' },
+  { name: 'Soft Black', hex: '#262229' },
+  { name: 'Variegated', hex: '#b06ab3' },
+]
+
+/** Display colour for a stash entry: its picked hex, else its family swatch. */
+export function yarnSwatch(yarn) {
+  return yarn?.hex || familySwatch(yarn?.color)
+}
