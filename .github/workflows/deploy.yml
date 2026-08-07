@@ -50,12 +50,27 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
         run: npx --yes firebase-tools@14 deploy --only hosting --project anchorchet --non-interactive
 
-      # Kept separate and last: this step fails until the Firestore database
-      # has actually been created, and that must not stop the site shipping.
-      - name: Deploy Firestore rules
+      # Advisory, not gating. Before deploying rules the CLI checks that the
+      # Firestore API is enabled, and that check needs serviceusage.services.get
+      # — a permission the service account Firebase generates does NOT have, so
+      # it 403s before reaching the rules themselves. Rules are published from
+      # the console instead, and a hosting deploy must not go red over it.
+      #
+      # To make this step actually work: Google Cloud console -> IAM -> find the
+      # firebase-adminsdk service account -> grant "Service Usage Consumer".
+      # It starts deploying rules on the next run, no workflow change needed.
+      - name: Deploy Firestore rules (advisory)
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: npx --yes firebase-tools@14 deploy --only firestore:rules --project anchorchet --non-interactive
+        run: |
+          if npx --yes firebase-tools@14 deploy --only firestore:rules \
+               --project anchorchet --non-interactive; then
+            echo "Firestore rules deployed from firestore.rules."
+          else
+            echo "::warning title=Firestore rules not deployed::firestore.rules was NOT pushed \
+          (the service account lacks Service Usage Consumer). If you edited firestore.rules in this \
+          commit, publish it by hand: Firebase console -> Firestore Database -> Rules -> paste -> Publish."
+          fi
 
       - name: Clean up credentials
         if: always()

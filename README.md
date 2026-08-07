@@ -69,6 +69,15 @@ Database → Rules**, paste the whole contents of `firestore.rules`, **Publish**
 No CLI needed. Do this before step 4 — a database left in test mode is readable
 by anyone with the URL.
 
+> CI cannot do this for you by default. Deploying rules makes the CLI first
+> check that the Firestore API is enabled, which needs `serviceusage.services.get`
+> — a permission the service account Firebase generates does not have, so it
+> 403s before reaching the rules. The workflow therefore treats the rules step
+> as advisory and only warns. To make it work: Google Cloud console → **IAM** →
+> the `firebase-adminsdk` service account → grant **Service Usage Consumer**.
+> Until then, `firestore.rules` is the source of truth in the repo but is only
+> applied when you paste it into the console.
+
 **3. Deploy hosting.** Two options:
 
 *From a computer:*
