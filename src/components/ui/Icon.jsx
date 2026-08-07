@@ -40,6 +40,10 @@ const PATHS = {
   pin: 'M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
   share:
     'M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5',
+  // Rounded play triangle inside a rounded frame — reads as "video" at 16px,
+  // where a bare triangle just looks like a stray chevron.
+  play: 'M3 7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7Zm7 1.8v6.4a.6.6 0 0 0 .92.5l4.8-3.2a.6.6 0 0 0 0-1l-4.8-3.2a.6.6 0 0 0-.92.5Z',
+  book: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Zm0 15A2.5 2.5 0 0 0 6.5 23H19v-5M9 7.5h6M9 11h4',
 }
 
 export function Icon({ name, className, size = 20, filled = false, strokeWidth = 1.7 }) {

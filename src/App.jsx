@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
+import { UpdateBanner } from './components/UpdateBanner'
 import { AppShell } from './components/layout/AppShell'
 import { Logo } from './components/layout/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -19,6 +20,7 @@ import { BowlingCalendar } from './screens/player1/BowlingCalendar'
 import { Arsenal } from './screens/player1/Arsenal'
 import { Alley } from './screens/Alley'
 import { Wishlist } from './screens/Wishlist'
+import { Manual } from './screens/Manual'
 import { Projects } from './screens/player1/Projects'
 import { FocusMode } from './screens/player1/FocusMode'
 
@@ -67,6 +69,7 @@ function Player1Routes() {
           <Route path="projects" element={<Projects />} />
           <Route path="stash" element={<YarnStash />} />
           <Route path="wishlist" element={<Wishlist />} />
+          <Route path="manual" element={<Manual />} />
         </Route>
 
         <Route path="bowling" element={<BowlingSection />}>
@@ -94,6 +97,9 @@ function Player2Routes() {
         <Route path="quests" element={<QuestGenerator />} />
         <Route path="supply" element={<SupplyDrop />} />
         <Route path="bowling" element={<BowlingWatch />} />
+        {/* Not in his tab bar — reached from the Drop Tutorial card so he can
+            see what he has already sent her. */}
+        <Route path="manual" element={<Manual />} />
         <Route path="fame" element={<HallOfFame />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -105,6 +111,9 @@ function Player2Routes() {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Outside the auth gate so the update prompt still reaches the login
+          screen and the splash. */}
+      <UpdateBanner />
       <AuthProvider>
         <DataProvider>
           <Gate />

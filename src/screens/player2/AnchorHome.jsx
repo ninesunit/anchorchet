@@ -7,7 +7,9 @@ import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
 import { Icon } from '../../components/ui/Icon'
 import { useData } from '../../context/DataContext'
 import { stashSummary } from '../../data/engine'
+import { BENCHMARK, benchmarkStanding } from '../../data/bowlingStats'
 import { cx, overallAverage, personalBest, timeAgo } from '../../lib/utils'
+import { DropTutorialCard } from '../Manual'
 import { NextUpCard } from '../player1/BowlingCalendar'
 import { HypeModal, useHypeTrigger } from './HypeButton'
 
@@ -21,6 +23,13 @@ export function AnchorHome() {
   const nextEvent = events.find((e) => (e.date?.getTime?.() ?? 0) >= Date.now())
   const last = sessions[0]
   const restock = stash.filter((y) => y.status === 'empty' || y.status === 'low')
+
+  // Prefer the session she has explicitly left open; fall back to the newest so
+  // the panel still shows something once she has ended for the day.
+  const liveSession = sessions.find((s) => s.is_active || s.status === 'live') || last
+  const standing = liveSession
+    ? benchmarkStanding(liveSession.game_scores || [])
+    : null
 
   const trigger = useHypeTrigger(sessions)
   const pendingHype = hype.filter((h) => h.to === 'player1' && !h.seen).length
@@ -48,13 +57,69 @@ export function AnchorHome() {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate font-extrabold">{last.location || 'The lanes'}</p>
-                <p className="mt-0.5 text-[12px] text-faint">{timeAgo(last.date)}</p>
+                <p className="flex items-center gap-2 truncate font-extrabold">
+                  {(last.is_active || last.status === 'live') && (
+                    <span className="relative flex size-2 shrink-0">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-70" />
+                      <span className="relative inline-flex size-2 rounded-full bg-mint" />
+                    </span>
+                  )}
+                  {last.location || 'The lanes'}
+                </p>
+                <p className="mt-0.5 text-[12px] text-faint">
+                  {last.is_active || last.status === 'live' ? 'Bowling now' : timeAgo(last.date)}
+                </p>
               </div>
               <Badge tone={last.type === 'tournament' ? 'ember' : 'neutral'}>
                 {last.type === 'tournament' ? 'Tournament' : 'Training'}
               </Badge>
             </div>
+
+            {standing && standing.played > 0 && (
+              <div
+                className={cx(
+                  'mt-3 flex items-center gap-3 rounded-xl border px-3.5 py-2.5',
+                  standing.diff === 0
+                    ? 'border-border bg-surface-2'
+                    : standing.ahead
+                      ? 'border-mint/50 bg-mint-soft/30'
+                      : 'border-amber/50 bg-amber-soft/30'
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                    vs {BENCHMARK} pace · {standing.played} game
+                    {standing.played === 1 ? '' : 's'}
+                  </p>
+                  <p
+                    className={cx(
+                      'text-xl font-extrabold leading-none tabular-nums',
+                      standing.diff === 0
+                        ? 'text-text'
+                        : standing.ahead
+                          ? 'text-mint'
+                          : 'text-amber'
+                    )}
+                  >
+                    {standing.diff === 0
+                      ? 'Level'
+                      : standing.ahead
+                        ? `Over ${standing.diff}`
+                        : `Under ${Math.abs(standing.diff)}`}
+                  </p>
+                </div>
+                {!standing.banked && standing.reachable && (
+                  <div className="shrink-0 text-right">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                      Needs next
+                    </p>
+                    <p className="text-xl font-extrabold leading-none tabular-nums">
+                      {standing.needNext}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-3.5 flex items-end gap-6">
               <div>
@@ -69,6 +134,14 @@ export function AnchorHome() {
                 </p>
                 <p className="text-4xl font-extrabold leading-none tabular-nums text-mint">
                   {last.session_average}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                  Games
+                </p>
+                <p className="text-4xl font-extrabold leading-none tabular-nums">
+                  {(last.game_scores || []).length}
                 </p>
               </div>
             </div>
@@ -223,6 +296,8 @@ export function AnchorHome() {
           of waiting on a delivery.
         </p>
       </Card>
+
+      <DropTutorialCard />
 
       <HypeModal open={hyping} onClose={() => setHyping(false)} session={last} />
     </div>

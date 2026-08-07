@@ -24,4 +24,6 @@ export const COLLECTIONS = {
   matches: 'bowling_matches',
   wishlist: 'yarn_wishlist',
   projects: 'custom_projects',
+  tutorials: 'crochet_tutorials',
+  glossary: 'visual_glossary',
 }

@@ -30,6 +30,8 @@ export function DataProvider({ children }) {
   const [matches, setMatches] = useState([])
   const [wishlist, setWishlist] = useState([])
   const [projects, setProjects] = useState([])
+  const [tutorials, setTutorials] = useState([])
+  const [glossary, setGlossary] = useState([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -45,6 +47,8 @@ export function DataProvider({ children }) {
       setMatches([])
       setWishlist([])
       setProjects([])
+      setTutorials([])
+      setGlossary([])
       setReady(false)
       return
     }
@@ -93,6 +97,12 @@ export function DataProvider({ children }) {
           rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
         )
       ),
+      backend.db.subscribe(COLLECTIONS.tutorials, (rows) =>
+        setTutorials(
+          rows.sort((a, b) => (b.date_added?.getTime?.() || 0) - (a.date_added?.getTime?.() || 0))
+        )
+      ),
+      backend.db.subscribe(COLLECTIONS.glossary, (rows) => setGlossary(rows)),
     ]
 
     setReady(true)
@@ -114,6 +124,8 @@ export function DataProvider({ children }) {
       matches,
       wishlist,
       projects,
+      tutorials,
+      glossary,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -183,6 +195,23 @@ export function DataProvider({ children }) {
       updateProject: (id, patch) => backend.db.update(c.projects, id, patch),
       removeProject: (id) => backend.db.remove(c.projects, id),
 
+      /* ------------------------------------------------- crafter's manual -- */
+      addTutorial: (data) =>
+        backend.db.add(c.tutorials, {
+          category: 'basics',
+          media_type: 'video',
+          date_added: new Date(),
+          ...data,
+        }),
+      updateTutorial: (id, patch) => backend.db.update(c.tutorials, id, patch),
+      removeTutorial: (id) => backend.db.remove(c.tutorials, id),
+
+      // Doc id IS the term id (`sc`, `invdec`, …) so an override replaces the
+      // built-in entry instead of appearing next to it.
+      setGlossaryTerm: (termId, data) =>
+        backend.db.set(c.glossary, termId, { ...data, updated_at: new Date() }),
+      removeGlossaryTerm: (termId) => backend.db.remove(c.glossary, termId),
+
       /* --------------------------------------------------- matches ---- */
       addMatch: (data) => backend.db.add(c.matches, { created_at: new Date(), ...data }),
       updateMatch: (id, patch) => backend.db.update(c.matches, id, patch),
@@ -199,7 +228,7 @@ export function DataProvider({ children }) {
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects, tutorials, glossary])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

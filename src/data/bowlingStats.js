@@ -147,13 +147,20 @@ export function arsenalSummary(sessions, arsenal) {
 export const MAX_GAME = 300
 
 /**
+ * The benchmark every series is measured against. Fixed at 200 rather than
+ * per-session: it is the number she is actually chasing, and a per-session
+ * field made the comparison between sessions meaningless.
+ */
+export const BENCHMARK = 200
+
+/**
  * Where she stands against a per-game benchmark across a series.
  *
  * The target is cumulative: a 200 benchmark over 2 games is 400, so 386 pins is
  * "under 14". `needNext` is what the next game must be to pull the whole series
  * back to level, which is the number she actually wants mid-series.
  */
-export function benchmarkStanding(scores, benchmark) {
+export function benchmarkStanding(scores, benchmark = BENCHMARK) {
   const games = (scores || []).map(Number).filter((n) => !Number.isNaN(n))
   const target = Number(benchmark) || 0
   if (!target) return null

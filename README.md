@@ -144,6 +144,34 @@ Specific things done for iOS/iPadOS:
 - Installable to the home screen (manifest + apple-touch-icon). **Settings**
   shows the install steps for whichever platform you are on.
 
+### Staying current on the home screen
+
+An installed home-screen app was serving a stale `index.html` after a deploy
+even once Safari had picked the new one up — there was no service worker at
+all, so iOS's own HTTP cache was the only thing deciding, and it kept the shell.
+
+`vite-plugin-pwa` now generates one:
+
+- **NetworkFirst** on navigations (4s timeout) — the shell is revalidated on
+  every launch, and the cache is only a fallback for having no signal at the
+  alley.
+- **StaleWhileRevalidate** on scripts, styles, fonts and images — those URLs
+  are content-hashed, so serving from cache while refreshing behind it costs
+  nothing and feels instant.
+- `skipWaiting` + `clientsClaim`, so a new build takes over as soon as it is
+  accepted instead of waiting for every tab to close.
+- `firebase.json` serves `sw.js`, `registerSW.js` and `workbox-*.js` with
+  `no-store`. A cached service worker keeps you exactly one version behind
+  forever, which is the same bug wearing a different hat.
+- Firestore and Google auth requests are on the navigate-fallback denylist —
+  the SDK does its own offline persistence, and a cached auth response is a bug.
+
+`registerType` is `prompt`, not `autoUpdate`: an "App updated — Reload" banner
+appears instead of the page reloading itself, because yanking the page out from
+under her mid-way through logging a series would lose the form. The banner
+re-checks for a new build hourly and on `visibilitychange`, `online` and
+`focus`; an installed app can sit open for days without re-requesting anything.
+
 ### Notifications
 
 Player 2 gets a local notification when a new bowling session appears. This uses
@@ -191,6 +219,25 @@ TikTok Shop link (a missing `https://` is added, or the href navigates inside
 the app instead of out to the shop). The same documents render as a buying
 queue on Player 2's Supply Drop. Marking a yarn item bought drops it straight
 into her stash.
+
+**Crafter's Manual.** A reference tab in her Crochet workspace, in three parts.
+
+*Videos* — Player 2 pastes a YouTube or TikTok link from a "Drop a tutorial"
+card on his dashboard and it appears at the top of her library, embedded and
+playable in-app; the seeded topics below it are deliberately *searches* rather
+than hardcoded video IDs, because a baked-in ID dies the day that channel does.
+
+*Glossary* — CH, SC, SL ST, INC, DEC, INV DEC, MR, FO, BLO/FLO and stitch
+anatomy, each with a hand-drawn labelled diagram (`StitchDiagram.jsx`). SVG
+rather than photos: for "where exactly does the hook go", a clean diagram beats
+a photograph of yarn, which is mostly fuzz. A `visual_glossary` document with
+the same id overrides any built-in entry, so a real GIF or a correction can be
+dropped in later without a code change.
+
+*Cheat sheets* — yarn weight → hook size, where the swatch bar physically
+thickens with the strand, plus the amigurumi exception (go one or two sizes
+smaller so stuffing cannot show through); and metric ↔ US hook conversion with
+the dot scaled to the actual millimetres.
 
 **My Projects.** Custom projects outside the pattern catalogue: reference
 images, progress photos, and a yarn ledger. Usage is logged in quarter-skein
@@ -332,8 +379,8 @@ yarn_stash/{id}             color, weight, quantity, status: in_stock|low|empty,
 bowling_sessions/{id}       type: training|tournament, date, location,
                             game_scores[], series_total, session_average, note,
                             ball_ids[], oil_pattern, status: live|ended,
-                            spares_converted, spare_attempts,
-                            benchmark_target, current_over_under,
+                            is_active, spares_converted, spare_attempts,
+                            benchmark_target (always 200), current_over_under,
                             pins_needed_next_game
 tournament_calendar/{id}    title, date, location, call_time, notes
 hall_of_fame/{id}           title, quest_id, kind: finished|in_use, caption,
@@ -348,6 +395,12 @@ custom_projects/{id}        title, note, status: in_progress|completed,
                             reference_images[], progress_photos[],
                             yarns_used[{stash_id,color,hex,quantity_used}],
                             created_at, completed_at
+crochet_tutorials/{id}      title, media_url, media_type: video|gif,
+                            category: anchor_dropped|basics|stitches|amigurumi,
+                            added_by, date_added
+visual_glossary/{termId}    abbreviation, full_name, description, visual_url,
+                            tier   (doc id IS the term id — `sc`, `invdec`, … —
+                            so an entry overrides the built-in of that name)
 bowling_matches/{id}        wager, status, turn, winner, created_at,
                             rolls: {player1:[], player2:[]},
                             standing: {player1:[], player2:[]},

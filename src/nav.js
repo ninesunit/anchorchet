@@ -23,6 +23,7 @@ export const SUBNAV = {
     { to: '/crochet/projects', label: 'My Projects' },
     { to: '/crochet/stash', label: 'Yarn Stash' },
     { to: '/crochet/wishlist', label: 'Wishlist' },
+    { to: '/crochet/manual', label: 'Manual' },
   ],
   '/bowling': [
     { to: '/bowling/sessions', label: 'Sessions' },
