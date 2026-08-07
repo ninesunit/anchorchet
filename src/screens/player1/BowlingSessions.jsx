@@ -19,6 +19,22 @@ import {
   sessionAverage,
 } from '../../lib/utils'
 
+/**
+ * Is this session still being bowled?
+ *
+ * Driven by an explicit status rather than the date. Dating alone had two
+ * problems: a session could never be closed early, and one running past
+ * midnight lost its live card mid-tournament — precisely when she is still
+ * bowling. Sessions saved before this field existed fall back to the old
+ * date check so nothing in history suddenly reopens.
+ */
+const isLive = (session) => {
+  if (!session) return false
+  if (session.status === 'ended') return false
+  if (session.status === 'live') return true
+  return isToday(session.date)
+}
+
 const isToday = (d) => {
   if (!d) return false
   const a = new Date(d)
@@ -41,6 +57,7 @@ export function BowlingSessions() {
 
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [justEnded, setJustEnded] = useState(null)
 
   const stats = useMemo(
     () => ({
@@ -58,8 +75,26 @@ export function BowlingSessions() {
     [sessions]
   )
 
-  const live = sessions[0] && isToday(sessions[0].date) ? sessions[0] : null
-  const rest = live ? sessions.slice(1) : sessions
+  const live = sessions.find(isLive) || null
+  const rest = sessions.filter((s) => s.id !== live?.id)
+  // Offer a way back for a session closed by mistake, but only for today's —
+  // a "reopen" on a match from three weeks ago is just clutter.
+  const reopenable = rest.find((s) => s.status === 'ended' && isToday(s.date))
+
+  async function endSession(session) {
+    await updateSession(session.id, { status: 'ended' })
+    setJustEnded(session.id)
+    // The undo bar is a safety net for a mis-tap, not a permanent control;
+    // the Reopen button on today's card covers the rest of the day.
+    setTimeout(() => setJustEnded((id) => (id === session.id ? null : id)), 12000)
+  }
+
+  async function reopenSession(session) {
+    // Only one session can be live at a time or two quick-add boxes appear.
+    if (live) await updateSession(live.id, { status: 'ended' })
+    await updateSession(session.id, { status: 'live' })
+    setJustEnded(null)
+  }
 
   async function saveGame(session, score) {
     const scores = [...(session.game_scores || []), score]
@@ -90,6 +125,32 @@ export function BowlingSessions() {
         </Card>
       )}
 
+      {justEnded && (
+        <Card className="mb-4 flex items-center gap-3 border-amber/45 bg-amber-soft/30 p-3.5">
+          <Icon name="check" size={18} className="shrink-0 text-amber" strokeWidth={2.6} />
+          <p className="min-w-0 flex-1 text-[13px] font-semibold">Session ended.</p>
+          <Button
+            variant="soft"
+            size="sm"
+            onClick={() => reopenSession(sessions.find((s) => s.id === justEnded))}
+          >
+            Undo
+          </Button>
+        </Card>
+      )}
+
+      {!live && reopenable && !justEnded && (
+        <Card className="mb-4 flex items-center gap-3 p-3.5">
+          <Icon name="bowling" size={18} className="shrink-0 text-muted" />
+          <p className="min-w-0 flex-1 text-[13px] text-muted">
+            Ended today&rsquo;s session at {reopenable.location || 'the lanes'}.
+          </p>
+          <Button variant="soft" size="sm" onClick={() => reopenSession(reopenable)}>
+            Reopen
+          </Button>
+        </Card>
+      )}
+
       {live && (
         <section className="mb-6">
           <SectionTitle>Today</SectionTitle>
@@ -97,6 +158,7 @@ export function BowlingSessions() {
             session={live}
             onAddGame={(score) => saveGame(live, score)}
             onEdit={() => setEditing(live)}
+            onEnd={() => endSession(live)}
           />
         </section>
       )}
@@ -140,8 +202,14 @@ export function BowlingSessions() {
         arsenal={arsenal}
         onClose={() => setEditing(null)}
         onSave={async (data) => {
-          if (editing?.id) await updateSession(editing.id, data)
-          else await addSession(data)
+          if (editing?.id) {
+            await updateSession(editing.id, data)
+          } else {
+            // Starting a session closes any other, so there is only ever one
+            // quick-add box on screen.
+            if (live) await updateSession(live.id, { status: 'ended' })
+            await addSession({ ...data, status: 'live' })
+          }
           setEditing(null)
         }}
         onDelete={editing?.id ? () => setConfirmDelete(editing) : null}
@@ -162,7 +230,7 @@ export function BowlingSessions() {
 }
 
 /** The at-the-alley view: one tap, type a number, done. */
-function LiveSession({ session, onAddGame, onEdit }) {
+function LiveSession({ session, onAddGame, onEdit, onEnd }) {
   const [score, setScore] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -193,9 +261,14 @@ function LiveSession({ session, onAddGame, onEdit }) {
           </div>
           <p className="mt-0.5 text-[12px] text-muted">{session.location || 'The lanes'}</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit session">
-          <Icon name="edit" size={17} />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit session">
+            <Icon name="edit" size={17} />
+          </Button>
+          <Button variant="soft" size="sm" onClick={onEnd}>
+            End
+          </Button>
+        </div>
       </div>
 
       <div className="mt-3.5 grid grid-cols-2 gap-2.5">
@@ -239,7 +312,8 @@ function LiveSession({ session, onAddGame, onEdit }) {
         </Button>
       </form>
       <p className="mt-2 text-center text-[12px] text-faint">
-        Saves instantly — Player 2 sees it on his phone.
+        Saves instantly — Player 2 sees it on his phone. Tap{' '}
+        <strong className="text-muted">End</strong> when you are done for the day.
       </p>
     </Card>
   )

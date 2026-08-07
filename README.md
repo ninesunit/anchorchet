@@ -206,6 +206,14 @@ than guessed: a flush pocket hit strikes about 40% of the time, a half-power
 roll 11%, a wide ball 1%. Scoring is real ten-pin, unit-checked against a 300
 game, all-spares 150 and all-nines 90.
 
+**Session lifecycle.** A session is explicitly `live` or `ended` rather than
+"is it dated today". The date check alone had two failures: there was no way to
+close a session early, and one running past midnight silently lost its live card
+mid-tournament. Ending is one tap, backed by a 12-second Undo bar and a Reopen
+button that stays available all day. Starting a session closes any other, so
+there is only ever one quick-add box. Sessions saved before this field existed
+fall back to the old date check so nothing in history reopens itself.
+
 **Bowling.** Session-based, not frame-by-frame. A session is tagged Training or
 Tournament; you punch in each game total as it finishes and series total and
 average compute themselves. A session dated today gets a **live card** at the
@@ -302,7 +310,7 @@ yarn_stash/{id}             color, weight, quantity, status: in_stock|low|empty,
                             brand, note
 bowling_sessions/{id}       type: training|tournament, date, location,
                             game_scores[], series_total, session_average, note,
-                            ball_ids[], oil_pattern,
+                            ball_ids[], oil_pattern, status: live|ended,
                             spares_converted, spare_attempts
 tournament_calendar/{id}    title, date, location, call_time, notes
 hall_of_fame/{id}           title, quest_id, kind: finished|in_use, caption,
