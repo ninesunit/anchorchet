@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
+import { RansomStrip } from '../../components/RansomStrip'
 import { Badge, QuestStatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
@@ -22,6 +23,8 @@ export function Player1Home() {
   return (
     <div className="animate-fade-up">
       {nextEvent && <NextUpCard event={nextEvent} />}
+
+      <RansomStrip />
 
       <div className="mb-6 grid grid-cols-2 gap-2.5 xl:grid-cols-4">
         <Stat

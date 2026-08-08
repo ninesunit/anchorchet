@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { RansomStrip } from '../../components/RansomStrip'
 import { Badge, QuestStatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
@@ -234,6 +235,8 @@ export function AnchorHome() {
         <Stat label="Open bounties" value={active.length} tone="ember" />
         <Stat label="Needs restock" value={restock.length} />
       </div>
+
+      <RansomStrip isPlayer2 />
 
       {nextEvent && <NextUpCard event={nextEvent} />}
 

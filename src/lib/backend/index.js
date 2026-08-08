@@ -27,4 +27,7 @@ export const COLLECTIONS = {
   tutorials: 'crochet_tutorials',
   glossary: 'visual_glossary',
   focusPlaylists: 'focus_playlists',
+  breathingAudios: 'breathing_audios',
+  ransomTasks: 'ransom_tasks',
+  permissionSlips: 'permission_slips',
 }

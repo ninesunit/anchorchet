@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../../context/AuthContext'
@@ -9,6 +9,7 @@ import { Avatar } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { HypeWatcher } from './HypeWatcher'
+import { AnchorProtocol, AnchorProtocolButton } from '../AnchorProtocol'
 
 /**
  * One shell, three layouts:
@@ -24,10 +25,26 @@ export function AppShell() {
   const { pathname } = useLocation()
   const items = NAV[role] ?? NAV.player1
 
+  /**
+   * The panic button lives in the shell, not on a screen.
+   *
+   * It has to be reachable from wherever she happens to be when it starts —
+   * mid-way through logging a series, halfway down the yarn stash — so it sits
+   * in the navigation next to the tabs and never scrolls away. Player 2 does
+   * not get it; it is hers.
+   */
+  const [grounding, setGrounding] = useState(false)
+  const showPanic = role !== 'player2'
+
   return (
     <div className="min-h-dvh bg-bg">
       <HypeWatcher />
-      <SideNav items={items} profile={profile} />
+      <SideNav
+        items={items}
+        profile={profile}
+        showPanic={showPanic}
+        onPanic={() => setGrounding(true)}
+      />
 
       <div className="md:pl-[76px] xl:pl-64">
         <TopBar profile={profile} />
@@ -48,14 +65,16 @@ export function AppShell() {
         </main>
       </div>
 
-      <TabBar items={items} />
+      <TabBar items={items} showPanic={showPanic} onPanic={() => setGrounding(true)} />
+
+      <AnchorProtocol open={grounding} onClose={() => setGrounding(false)} />
     </div>
   )
 }
 
 /* ------------------------------------------------------------- side nav -- */
 
-function SideNav({ items, profile }) {
+function SideNav({ items, profile, showPanic, onPanic }) {
   const { signOut } = useAuth()
 
   return (
@@ -97,6 +116,12 @@ function SideNav({ items, profile }) {
             )}
           </NavLink>
         ))}
+
+        {showPanic && (
+          <div className="mt-2 border-t border-border pt-2">
+            <AnchorProtocolButton variant="rail" onClick={onPanic} />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-border p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
@@ -139,7 +164,7 @@ function SideNav({ items, profile }) {
 
 /* -------------------------------------------------------------- tab bar -- */
 
-function TabBar({ items }) {
+function TabBar({ items, showPanic, onPanic }) {
   return (
     <nav
       className={cx(
@@ -173,6 +198,8 @@ function TabBar({ items }) {
             )}
           </NavLink>
         ))}
+
+        {showPanic && <AnchorProtocolButton onClick={onPanic} />}
       </div>
     </nav>
   )
@@ -189,6 +216,8 @@ const TITLES = {
   '/quests': 'Quest Board',
   '/supply': 'Supply Drop',
   '/settings': 'Settings',
+  '/ransom': 'Mystery Ransom',
+  '/toolkit': 'Anchor Kit',
 }
 
 function TopBar({ profile }) {

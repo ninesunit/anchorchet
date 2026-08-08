@@ -12,6 +12,21 @@ const iso = (daysFromNow, hour = 19) => {
   return d.toISOString()
 }
 
+
+/** 0.1s of silence — enough for a play button to do something in the demo. */
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA='
+
+/** Flat-colour placeholders so the demo shows the blur without shipping photos. */
+const swatch = (hex) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="${hex}"/><circle cx="200" cy="130" r="60" fill="rgba(255,255,255,0.35)"/><rect x="120" y="205" width="160" height="22" rx="11" fill="rgba(255,255,255,0.3)"/></svg>`
+  )}`
+
+const RANSOM_PHOTO = swatch('#e0684f')
+const RANSOM_PHOTO_2 = swatch('#5b8ea8')
+const PROOF_PHOTO = swatch('#6f9c7a')
+
 export function seedDemoData() {
   return {
     users: {
@@ -136,6 +151,64 @@ export function seedDemoData() {
         series_total: 592,
         session_average: 197.3,
         note: 'That 212 felt effortless.',
+      },
+    },
+
+    /**
+     * A tiny silent WAV, so the demo has something to press play on without
+     * shipping a real recording of anybody. Real notes are recorded in-app.
+     */
+    breathing_audios: {
+      ba1: {
+        title: 'Just breathe with me',
+        audio_url: SILENT_WAV,
+        kind: 'grounding',
+        duration_sec: 12,
+        created_at: iso(-6, 21),
+      },
+      ba2: {
+        title: "You're safe, nothing is on fire",
+        audio_url: SILENT_WAV,
+        kind: 'grounding',
+        duration_sec: 18,
+        created_at: iso(-4, 22),
+      },
+      ba3: {
+        title: 'Three things then stop',
+        audio_url: SILENT_WAV,
+        kind: 'lifeline',
+        duration_sec: 9,
+        created_at: iso(-3, 20),
+      },
+    },
+
+    permission_slips: {
+      ps1: { text: 'Do it terribly. 50% effort counts today.', created_at: iso(-5, 20) },
+      ps2: {
+        text: 'Just the sink. Not the counters, not the floor. The sink.',
+        created_at: iso(-2, 19),
+      },
+    },
+
+    ransom_tasks: {
+      rt1: {
+        title: 'The dishes from Tuesday',
+        description: 'Just the sink, the pans can wait.',
+        anchor_photo_url: RANSOM_PHOTO,
+        proof_photo_url: '',
+        status: 'pending',
+        is_revealed: false,
+        created_at: iso(-2, 11),
+      },
+      rt2: {
+        title: 'Laundry off the chair',
+        description: '',
+        anchor_photo_url: RANSOM_PHOTO_2,
+        proof_photo_url: PROOF_PHOTO,
+        status: 'submitted_for_approval',
+        is_revealed: false,
+        created_at: iso(-4, 15),
+        submitted_at: iso(-1, 18),
       },
     },
 

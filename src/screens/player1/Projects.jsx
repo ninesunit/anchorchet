@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { LifelineButton, LifelineModal } from '../../components/LifelineModal'
 import { StitchQuickView } from '../../components/StitchQuickView'
 import { StitchSymbol } from '../../components/StitchSymbol'
 import { Badge, ColorDot, QuestStatusBadge, TierBadge } from '../../components/ui/Badge'
@@ -48,6 +49,7 @@ export function Projects() {
   const [filter, setFilter] = useState('in_progress')
   const [openStitch, setOpenStitch] = useState(null)
   const [completing, setCompleting] = useState(null)
+  const [lifeline, setLifeline] = useState(null)
 
   const live = projects.filter((p) => p.status !== 'completed')
   const done = projects.filter((p) => p.status === 'completed')
@@ -199,6 +201,7 @@ export function Projects() {
                   onEdit={() => setEditing(project)}
                   onLog={() => setLogging(project)}
                   onStitch={setOpenStitch}
+                  onLifeline={() => setLifeline(project)}
                   onToggleDone={() => {
                     const finishing = project.status !== 'completed'
                     // Finishing a bounty is also finishing the quest, and that
@@ -264,6 +267,12 @@ export function Projects() {
         }}
         title="Delete this project?"
         body="Yarn already logged against it stays deducted from your stash."
+      />
+
+      <LifelineModal
+        open={Boolean(lifeline)}
+        onClose={() => setLifeline(null)}
+        task={lifeline}
       />
 
       <StitchQuickView
@@ -339,7 +348,7 @@ function StitchPills({ labels, onStitch, className }) {
   )
 }
 
-function ProjectCard({ project, onEdit, onLog, onToggleDone, onStitch }) {
+function ProjectCard({ project, onEdit, onLog, onToggleDone, onStitch, onLifeline }) {
   const used = project.yarns_used || []
   const cover = project.progress_photos?.[0] || project.reference_images?.[0]
   const done = project.status === 'completed'
@@ -385,7 +394,7 @@ function ProjectCard({ project, onEdit, onLog, onToggleDone, onStitch }) {
           </div>
         )}
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex items-center gap-2">
           <Button variant="soft" size="sm" full onClick={onLog}>
             <Icon name="yarn" size={15} />
             Log yarn
@@ -393,6 +402,9 @@ function ProjectCard({ project, onEdit, onLog, onToggleDone, onStitch }) {
           <Button variant={done ? 'soft' : 'mint'} size="sm" full onClick={onToggleDone}>
             {done ? 'Reopen' : 'Finish'}
           </Button>
+          {/* Sat next to the task rather than in a menu: the moment she needs
+              it is the moment she is already staring at this card. */}
+          {!done && onLifeline && <LifelineButton onClick={onLifeline} label="" />}
         </div>
       </div>
     </Card>

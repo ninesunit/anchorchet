@@ -33,6 +33,10 @@ export function DataProvider({ children }) {
   const [tutorials, setTutorials] = useState([])
   const [glossary, setGlossary] = useState([])
   const [focusPlaylists, setFocusPlaylists] = useState([])
+  const [breathingAudios, setBreathingAudios] = useState([])
+  const [ransomTasks, setRansomTasks] = useState([])
+  const [permissionSlips, setPermissionSlips] = useState([])
+  const [people, setPeople] = useState([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -51,6 +55,10 @@ export function DataProvider({ children }) {
       setTutorials([])
       setGlossary([])
       setFocusPlaylists([])
+      setBreathingAudios([])
+      setRansomTasks([])
+      setPermissionSlips([])
+      setPeople([])
       setReady(false)
       return
     }
@@ -112,6 +120,24 @@ export function DataProvider({ children }) {
           rows.sort((a, b) => (a.added_at?.getTime?.() || 0) - (b.added_at?.getTime?.() || 0))
         )
       ),
+      backend.db.subscribe(COLLECTIONS.breathingAudios, (rows) =>
+        setBreathingAudios(
+          rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
+        )
+      ),
+      backend.db.subscribe(COLLECTIONS.ransomTasks, (rows) =>
+        setRansomTasks(
+          rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
+        )
+      ),
+      backend.db.subscribe(COLLECTIONS.permissionSlips, (rows) =>
+        setPermissionSlips(
+          rows.sort((a, b) => (b.created_at?.getTime?.() || 0) - (a.created_at?.getTime?.() || 0))
+        )
+      ),
+      // Both profiles, so each side can show the other's name and reach their
+      // phone. Rules allow reading either and writing only your own.
+      backend.db.subscribe(COLLECTIONS.users, (rows) => setPeople(rows)),
     ]
 
     setReady(true)
@@ -136,6 +162,12 @@ export function DataProvider({ children }) {
       tutorials,
       glossary,
       focusPlaylists,
+      breathingAudios,
+      ransomTasks,
+      permissionSlips,
+      people,
+      anchorProfile: people.find((p) => p.role === 'player2') ?? null,
+      crafterProfile: people.find((p) => p.role === 'player1') ?? null,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -236,6 +268,35 @@ export function DataProvider({ children }) {
         backend.db.add(c.focusPlaylists, { added_at: new Date(), ...data }),
       removeFocusPlaylist: (id) => backend.db.remove(c.focusPlaylists, id),
 
+      /* ------------------------------------------- the anchor protocol -- */
+      addBreathingAudio: (data) =>
+        backend.db.add(c.breathingAudios, {
+          // 'grounding' plays during a panic episode, 'lifeline' is the
+          // permission-to-start-small note. Same recorder, different moment.
+          kind: 'grounding',
+          created_at: new Date(),
+          ...data,
+        }),
+      updateBreathingAudio: (id, patch) => backend.db.update(c.breathingAudios, id, patch),
+      removeBreathingAudio: (id) => backend.db.remove(c.breathingAudios, id),
+
+      addPermissionSlip: (data) =>
+        backend.db.add(c.permissionSlips, { created_at: new Date(), ...data }),
+      removePermissionSlip: (id) => backend.db.remove(c.permissionSlips, id),
+
+      /* --------------------------------------------- the mystery ransom -- */
+      addRansomTask: (data) =>
+        backend.db.add(c.ransomTasks, {
+          description: '',
+          proof_photo_url: '',
+          status: 'pending',
+          is_revealed: false,
+          created_at: new Date(),
+          ...data,
+        }),
+      updateRansomTask: (id, patch) => backend.db.update(c.ransomTasks, id, patch),
+      removeRansomTask: (id) => backend.db.remove(c.ransomTasks, id),
+
       /* --------------------------------------------------- matches ---- */
       addMatch: (data) => backend.db.add(c.matches, { created_at: new Date(), ...data }),
       updateMatch: (id, patch) => backend.db.update(c.matches, id, patch),
@@ -252,7 +313,7 @@ export function DataProvider({ children }) {
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects, tutorials, glossary, focusPlaylists])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects, tutorials, glossary, focusPlaylists, breathingAudios, ransomTasks, permissionSlips, people])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

@@ -228,6 +228,45 @@ Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
 it syncs to both phones and replaces the placeholder everywhere. Real photos are
 not bundled — the game characters are somebody else's artwork.
 
+**The Anchor Protocol.** A panic button that lives in the navigation itself
+rather than on a screen, so it is reachable from wherever she happens to be
+when it starts. Tapping it fades the whole app to a dark, still surface with a
+4-7-8 breathing circle — in for four, hold for seven, out for eight, driven off
+those actual numbers rather than an approximation that looks about right — and
+loops one of his recorded voice notes underneath. The note is picked at random
+per opening: hearing the identical sentence every single time turns his voice
+into a ringtone, and the point is that it should feel like him being there. The
+grounding screen is dark in both themes; a white flashbang mid-panic-attack is
+the opposite of the idea.
+
+Nothing on it counts anything. No streak, no timer, no "you have opened this
+four times today" — instrumenting a bad day makes it worse.
+
+**The Mystery Ransom.** A chore with something of his behind it: a photo she
+cannot see until it is done. Two rules make it work rather than being a
+gimmick. She cannot unlock it herself — self-marking a chore complete is exactly
+the step that quietly stops happening, so the unlock is his to give, which turns
+finishing into telling someone rather than ticking a box. And the blur is a
+curtain, not a lock: the photo URL is on the document from the start, because
+this is a game between two people who trust each other and a round trip before
+the reveal would kill the animation.
+
+Flow: he attaches the photo → she sees a blurred rectangle and a padlock → she
+taps *Submit proof* and photographs the done thing → it lands on his dashboard
+as "waiting for your approval" → *Approve & reveal* flips `is_revealed` and the
+blur lifts on her side over 1.4s.
+
+**The Executive Dysfunction Lifeline.** A life-ring button next to every active
+chore and project, for the specific failure where the task is not hard, she
+knows exactly what to do, and she still cannot start. Three options, all of them
+lowering the bar rather than raising the stakes: one of his *lifeline*
+recordings, a permission slip in his words ("Do it terribly. 50% effort counts
+today."), or a one-tap call. It sits next to the task rather than behind a menu,
+because the moment she needs it is the moment she is already staring at the card.
+
+He sets all of it up ahead of time on **Anchor Kit** — the premise being that
+the worst moment is the wrong moment to be asking for help.
+
 **Focus Mode.** Saved playlists live in `focus_playlists` and sync across
 devices, replacing the localStorage list that made a playlist saved on her phone
 invisible on her iPad. Anything already stored locally is migrated once on first
@@ -357,6 +396,45 @@ confetti across her screen the next time she opens the app.
 shopping list, plus a ranked list of which single ball would unlock the most
 near-complete patterns.
 
+**The Anchor Protocol.** A panic button that lives in the navigation itself
+rather than on a screen, so it is reachable from wherever she happens to be
+when it starts. Tapping it fades the whole app to a dark, still surface with a
+4-7-8 breathing circle — in for four, hold for seven, out for eight, driven off
+those actual numbers rather than an approximation that looks about right — and
+loops one of his recorded voice notes underneath. The note is picked at random
+per opening: hearing the identical sentence every single time turns his voice
+into a ringtone, and the point is that it should feel like him being there. The
+grounding screen is dark in both themes; a white flashbang mid-panic-attack is
+the opposite of the idea.
+
+Nothing on it counts anything. No streak, no timer, no "you have opened this
+four times today" — instrumenting a bad day makes it worse.
+
+**The Mystery Ransom.** A chore with something of his behind it: a photo she
+cannot see until it is done. Two rules make it work rather than being a
+gimmick. She cannot unlock it herself — self-marking a chore complete is exactly
+the step that quietly stops happening, so the unlock is his to give, which turns
+finishing into telling someone rather than ticking a box. And the blur is a
+curtain, not a lock: the photo URL is on the document from the start, because
+this is a game between two people who trust each other and a round trip before
+the reveal would kill the animation.
+
+Flow: he attaches the photo → she sees a blurred rectangle and a padlock → she
+taps *Submit proof* and photographs the done thing → it lands on his dashboard
+as "waiting for your approval" → *Approve & reveal* flips `is_revealed` and the
+blur lifts on her side over 1.4s.
+
+**The Executive Dysfunction Lifeline.** A life-ring button next to every active
+chore and project, for the specific failure where the task is not hard, she
+knows exactly what to do, and she still cannot start. Three options, all of them
+lowering the bar rather than raising the stakes: one of his *lifeline*
+recordings, a permission slip in his words ("Do it terribly. 50% effort counts
+today."), or a one-tap call. It sits next to the task rather than behind a menu,
+because the moment she needs it is the moment she is already staring at the card.
+
+He sets all of it up ahead of time on **Anchor Kit** — the premise being that
+the worst moment is the wrong moment to be asking for help.
+
 **Focus Mode.** A Spotify embed pinned to the Crochet and Bowling screens so she
 can change music without leaving the app. Ships with your playlist
 (`37i9dQZF1EJCtsZ74SnoAi`) already loaded; paste any other share link to add
@@ -395,6 +473,34 @@ so mounting more screens does not open more.
 
 **Offline.** Firestore persistent cache is on, so the app keeps working when the
 wifi drops at the alley — writes queue locally and flush on reconnect.
+
+### Audio, and the missing Storage bucket
+
+The app has never had a Firebase Storage bucket — photos are downscaled in the
+browser and stored as data URLs on the document, which has kept everything on
+the free tier with no CORS config and no signed URLs. Voice notes strain that,
+since a Firestore document caps at 1 MB.
+
+`lib/media.js` tries Storage first and falls back to inline. Storage is not
+assumed to exist: a project created after October 2024 needs a Blaze billing
+plan before a bucket can be provisioned. If an upload fails for a reason that
+will keep failing — no bucket, not authorised, billing off — that is remembered
+for the session and later uploads skip straight to inline. The attempt is also
+raced against a 12s timeout, because an upload to a bucket that was never
+provisioned can sit there retrying rather than failing, and a spinner that never
+resolves is worse than a fallback.
+
+So it works today with nothing to set up, and the moment a bucket exists it
+starts using it with no code change and no migration — an old inline URL is
+still a perfectly good `src`. Recording is capped at 90 seconds at 24 kbps,
+which measures at about 2 KB/second, so the longest possible note is roughly
+180 KB base64 against a 700 KB guard.
+
+`useRecorder` probes the codec rather than assuming one: Safari produces
+`audio/mp4` and does not know what webm is, everything else prefers
+`audio/webm;codecs=opus`, and passing an unsupported mimeType throws. It also
+stops the microphone tracks by hand on teardown — leaving them live keeps the
+recording indicator lit in the status bar long after he has finished.
 
 ### The countdown
 
@@ -460,7 +566,8 @@ she next opens the app, so it is a document with a `seen` flag rather than a
 live signal).
 
 ```
-users/{uid}                 name, role: player1|player2, avatar_url, email
+users/{uid}                 name, role: player1|player2, avatar_url, email,
+                            phone  (optional — the Lifeline call button)
 crochet_quests/{id}         title, pattern_id, requested_by, reward, priority,
                             note, status: pending|accepted|completed,
                             suggested_stitches[]  (keyword analyzer output),
@@ -492,6 +599,14 @@ custom_projects/{id}        title, note, status: in_progress|completed,
                             created_at, completed_at
 focus_playlists/{id}        title, original_url, embed_url (built by
                             convertSpotifyUrlToEmbed), added_at
+breathing_audios/{id}       title, audio_url, duration_sec, created_at,
+                            kind: grounding|lifeline  (grounding loops during a
+                            panic episode, lifeline plays on task paralysis)
+ransom_tasks/{id}           title, description, anchor_photo_url,
+                            proof_photo_url, is_revealed,
+                            status: pending|submitted_for_approval|revealed,
+                            created_at, submitted_at, revealed_at
+permission_slips/{id}       text, created_at
 crochet_tutorials/{id}      title, media_url, media_type: video|gif,
                             category: anchor_dropped|basics|stitches|amigurumi,
                             added_by, date_added

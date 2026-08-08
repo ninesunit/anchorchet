@@ -19,6 +19,7 @@ import { BowlingCalendar } from './screens/player1/BowlingCalendar'
 import { Arsenal } from './screens/player1/Arsenal'
 import { Alley } from './screens/Alley'
 import { Manual } from './screens/Manual'
+import { Ransom } from './screens/Ransom'
 import { Projects } from './screens/player1/Projects'
 import { FocusMode } from './screens/player1/FocusMode'
 
@@ -26,6 +27,7 @@ import { AnchorHome } from './screens/player2/AnchorHome'
 import { QuestGenerator } from './screens/player2/QuestGenerator'
 import { SupplyDrop } from './screens/player2/SupplyDrop'
 import { BowlingWatch } from './screens/player2/BowlingWatch'
+import { Toolkit } from './screens/player2/Toolkit'
 
 import { HallOfFame } from './screens/HallOfFame'
 
@@ -80,6 +82,7 @@ function Player1Routes() {
           <Route path="alley" element={<Alley />} />
         </Route>
 
+        <Route path="ransom" element={<Ransom />} />
         <Route path="fame" element={<HallOfFame />} />
         <Route path="focus" element={<FocusMode />} />
         <Route path="settings" element={<Settings />} />
@@ -100,6 +103,8 @@ function Player2Routes() {
         {/* Not in his tab bar — reached from the Drop Tutorial card so he can
             see what he has already sent her. */}
         <Route path="manual" element={<Manual />} />
+        <Route path="ransom" element={<Ransom />} />
+        <Route path="toolkit" element={<Toolkit />} />
         <Route path="fame" element={<HallOfFame />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

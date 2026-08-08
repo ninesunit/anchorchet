@@ -19,6 +19,7 @@ export function Settings() {
   const standalone = useStandalone()
 
   const [name, setName] = useState(profile?.name || '')
+  const [phone, setPhone] = useState(profile?.phone || '')
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState(0)
   const [permission, setPermission] = useState(notificationPermission())
@@ -27,9 +28,12 @@ export function Settings() {
 
   useEffect(() => {
     setName(profile?.name || '')
-  }, [profile?.name])
+    setPhone(profile?.phone || '')
+  }, [profile?.name, profile?.phone])
 
-  const dirty = name.trim() !== (profile?.name || '') && name.trim().length > 0
+  const dirty =
+    (name.trim() !== (profile?.name || '') && name.trim().length > 0) ||
+    phone.trim() !== (profile?.phone || '')
 
   async function saveProfile(patch) {
     setSaving(true)
@@ -88,15 +92,39 @@ export function Settings() {
             />
           </Field>
 
+          {/* Her Lifeline "Call him" button reads this off his profile, so a
+              number saved here turns that into one tap instead of a dead end. */}
+          <Field
+            label="Phone"
+            hint="optional — powers the Lifeline call button"
+            className="mt-4"
+            htmlFor="settings-phone"
+          >
+            <Input
+              id="settings-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+60 12 345 6789"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+            />
+          </Field>
+
           <Button
             variant="primary"
             full
             className="mt-3"
             disabled={!dirty}
             loading={saving}
-            onClick={() => saveProfile({ name: name.trim() })}
+            onClick={() =>
+              saveProfile({
+                ...(name.trim() ? { name: name.trim() } : {}),
+                phone: phone.trim(),
+              })
+            }
           >
-            {savedAt && !dirty ? 'Saved' : 'Save name'}
+            {savedAt && !dirty ? 'Saved' : 'Save'}
           </Button>
 
           {user?.email && (

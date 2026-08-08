@@ -44,6 +44,22 @@ const PATHS = {
   // where a bare triangle just looks like a stray chevron.
   play: 'M3 7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7Zm7 1.8v6.4a.6.6 0 0 0 .92.5l4.8-3.2a.6.6 0 0 0 0-1l-4.8-3.2a.6.6 0 0 0-.92.5Z',
   book: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5V5.5Zm0 15A2.5 2.5 0 0 0 6.5 23H19v-5M9 7.5h6M9 11h4',
+  close: 'M6 6l12 12M18 6L6 18',
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm7 9a7 7 0 0 1-14 0m7 7v3m-3 0h6',
+  stop: 'M7 7h10v10H7z',
+  play2: 'M8 5.5v13a.6.6 0 0 0 .93.5l9.5-6.5a.6.6 0 0 0 0-1L8.93 5a.6.6 0 0 0-.93.5Z',
+  pause: 'M9 5v14M15 5v14',
+  volume: 'M4 9.5h3L11.5 6v12L7 14.5H4v-5Zm11.5-1a5 5 0 0 1 0 7m3-10a9 9 0 0 1 0 13',
+  volumeOff: 'M4 9.5h3L11.5 6v12L7 14.5H4v-5Zm12-1 5 5m0-5-5 5',
+  lock: 'M6.5 10.5V8a5.5 5.5 0 0 1 11 0v2.5M5 10.5h14a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5a1 1 0 0 1 1-1Zm7 4.5v2.5',
+  unlock: 'M6.5 10.5V8a5.5 5.5 0 0 1 10.6-2M5 10.5h14a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5a1 1 0 0 1 1-1Zm7 4.5v2.5',
+  // Life ring — the Executive Dysfunction Lifeline. Drawn rather than the 🛟
+  // emoji so it inherits colour and never renders as a tofu box.
+  lifeline:
+    'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-8V3m0 18v-5M8 12H3m18 0h-5M9.2 9.2 5.6 5.6m12.8 12.8-3.6-3.6M9.2 14.8l-3.6 3.6M18.4 5.6l-3.6 3.6',
+  phone:
+    'M6.5 3.5h3l1.5 4-2 1.5a12 12 0 0 0 6 6L16.5 13l4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2Z',
+  note: 'M5 4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15Zm3.5 3.5h7m-7 4h7m-7 4h4',
 }
 
 export function Icon({ name, className, size = 20, filled = false, strokeWidth = 1.7 }) {
