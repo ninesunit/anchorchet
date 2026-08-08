@@ -5,7 +5,10 @@ export function cx(...parts) {
 export function toDate(value) {
   if (!value) return null
   if (value instanceof Date) return value
+  // Firestore Timestamp — either the live SDK object with .toDate(), or the
+  // plain {seconds, nanoseconds} shape you get back from a serialised snapshot.
   if (typeof value?.toDate === 'function') return value.toDate()
+  if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000)
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? null : d
 }

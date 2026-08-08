@@ -26,4 +26,5 @@ export const COLLECTIONS = {
   projects: 'custom_projects',
   tutorials: 'crochet_tutorials',
   glossary: 'visual_glossary',
+  focusPlaylists: 'focus_playlists',
 }

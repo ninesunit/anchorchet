@@ -228,6 +228,28 @@ Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
 it syncs to both phones and replaces the placeholder everywhere. Real photos are
 not bundled — the game characters are somebody else's artwork.
 
+**Focus Mode.** Saved playlists live in `focus_playlists` and sync across
+devices, replacing the localStorage list that made a playlist saved on her phone
+invisible on her iPad. Anything already stored locally is migrated once on first
+load.
+
+Pasted links go through `convertSpotifyUrlToEmbed` before they touch an iframe:
+`/playlist/ID` is a web page and only `/embed/playlist/ID` is a player, so a raw
+share URL renders Spotify's own "Page not found" *inside* the embed. It handles
+the `?si=` tracking parameter, locale-prefixed URLs (`/intl-de/...`),
+`spotify:playlist:ID` URIs, and playlist/album/track/artist/episode/show. It is
+idempotent, so re-running it over a stored value is safe.
+
+One thing no amount of URL fixing solves: Spotify's `37i9dQZF1E…` range is the
+per-account stuff — Daylist, your Mixes, Discover Weekly — and those cannot be
+embedded by anyone, owner included. The app now warns at paste time instead of
+letting you save one and wonder why the box is empty.
+
+No Spotify API key is involved anywhere. The embed is a plain iframe against a
+public URL; a client ID would only matter for reading a library or driving the
+Web Playback SDK, and a client secret must never reach this codebase at all —
+Vite inlines everything it can into the browser bundle.
+
 **Wishlist / Buy requests.** Lives behind a `[ My Inventory | Wishlist ]`
 segmented control inside Yarn Stash — the same subject from two sides, and
 splitting them meant the shortest journey in the app (ran out of a colour, so
@@ -374,6 +396,31 @@ so mounting more screens does not open more.
 **Offline.** Firestore persistent cache is on, so the app keeps working when the
 wifi drops at the alley — writes queue locally and flush on reconnect.
 
+### The countdown
+
+`useCountdown(target)` takes anything `toDate` understands — a Firestore
+Timestamp, a plain `{seconds}` snapshot, a Date, an ISO string — and returns
+days/hours/minutes/seconds plus pre-padded `dd`/`hh`/`mm`/`ss` strings. Padding
+lives in the hook rather than the component so no caller can forget it, and the
+digits are `tabular-nums`; together that is what stops the boxes twitching as it
+ticks from 10 to 9.
+
+It used to back off to a once-a-minute tick when the target was more than a day
+away, on the theory that a countdown three weeks out has no business
+re-rendering 86,400 times. That was wrong in practice — the seconds box just sat
+there frozen, which reads as a broken clock, not a considered optimisation. It
+ticks every second now and pays the cost back honestly: the interval is torn
+down on `visibilitychange` while the tab is hidden, and again the moment the
+target passes, so a phone in a pocket is running no timer at all. Verified: 12
+in-app navigations leave the live-interval count flat, and it drops to zero
+countdowns on a screen without one.
+
+Past the target every field clamps to `00` and the card switches to an "In
+progress · Started 2h ago" state. `pickNextEvent` — shared by both dashboards
+and the calendar tab so all three agree — prefers an event that started within
+the last 8 hours over the next future one, because a tournament happening right
+now matters more than the one three weeks out.
+
 ### Sub-tab scroll position
 
 The four Crochet pills overflow a phone, and every tab tap used to snap the row
@@ -443,6 +490,8 @@ custom_projects/{id}        title, note, status: in_progress|completed,
                             reference_images[], progress_photos[],
                             yarns_used[{stash_id,color,hex,quantity_used}],
                             created_at, completed_at
+focus_playlists/{id}        title, original_url, embed_url (built by
+                            convertSpotifyUrlToEmbed), added_at
 crochet_tutorials/{id}      title, media_url, media_type: video|gif,
                             category: anchor_dropped|basics|stitches|amigurumi,
                             added_by, date_added

@@ -10,7 +10,7 @@ import { stashSummary } from '../../data/engine'
 import { BENCHMARK, benchmarkStanding } from '../../data/bowlingStats'
 import { cx, overallAverage, personalBest, timeAgo } from '../../lib/utils'
 import { DropTutorialCard } from '../Manual'
-import { NextUpCard } from '../player1/BowlingCalendar'
+import { NextUpCard, pickNextEvent } from '../player1/BowlingCalendar'
 import { HypeModal, useHypeTrigger } from './HypeButton'
 
 export function AnchorHome() {
@@ -20,7 +20,7 @@ export function AnchorHome() {
   const summary = useMemo(() => stashSummary(stash), [stash])
   const active = quests.filter((q) => q.status !== 'completed')
   const inProgress = quests.filter((q) => q.status === 'in_progress')
-  const nextEvent = events.find((e) => (e.date?.getTime?.() ?? 0) >= Date.now())
+  const nextEvent = pickNextEvent(events)
   const restock = stash.filter((y) => y.status === 'empty' || y.status === 'low')
 
   /**

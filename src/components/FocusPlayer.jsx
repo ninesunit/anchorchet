@@ -1,91 +1,72 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { Chip, ChipRow, Field, Input } from './ui/Field'
 import { Icon } from './ui/Icon'
 import { Modal } from './ui/Modal'
+import { useData } from '../context/DataContext'
+import {
+  convertSpotifyUrlToEmbed,
+  defaultTitle,
+  embedSrc,
+  isLikelyUnembeddable,
+  parseSpotifyUrl,
+} from '../lib/spotify'
 import { cx } from '../lib/utils'
 
-const KEY = 'anchorchet.playlists'
+/** Where playlists used to live, before they moved to Firestore. */
+const LEGACY_KEY = 'anchorchet.playlists'
 
 /**
- * Spotify links are personal, so the app ships with none and stores whatever
- * she saves locally rather than in Firestore — a playlist list is not data
- * Player 2 needs to see, and keeping it out of the shared DB means no extra
- * security rule.
+ * One-time lift of locally-saved playlists into the shared collection.
+ *
+ * They were in localStorage on the theory that a playlist list is not something
+ * Player 2 needs to see. That was the wrong call for the wrong reason: it also
+ * meant a playlist saved on her phone did not exist on her iPad, which reads as
+ * "saving is broken". Anything already stored is migrated once and the key is
+ * dropped, so nothing she saved is lost on the way over.
  */
-/**
- * Seeded on first run so Focus Mode is playing something out of the box.
- * Removing it sticks: an empty stored array is still a stored array, so the
- * default only comes back after a full reset.
- */
-const DEFAULT_PLAYLISTS = [
-  {
-    id: 'default-focus',
-    name: 'Focus',
-    kind: 'playlist',
-    embed: 'https://open.spotify.com/embed/playlist/37i9dQZF1EJCtsZ74SnoAi?utm_source=generator&theme=0',
-  },
-]
-
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY)
-    // A missing key means "never configured" — an empty array means "cleared".
-    return raw === null ? DEFAULT_PLAYLISTS : JSON.parse(raw)
-  } catch {
-    return DEFAULT_PLAYLISTS
-  }
-}
-
-export function usePlaylists() {
-  const [playlists, setPlaylists] = useState(load)
-
-  const persist = useCallback((next) => {
-    setPlaylists(next)
+function useLegacyMigration(playlists, addFocusPlaylist, ready) {
+  useEffect(() => {
+    if (!ready) return
+    let raw
     try {
-      localStorage.setItem(KEY, JSON.stringify(next))
+      raw = localStorage.getItem(LEGACY_KEY)
     } catch {
-      /* private mode */
+      return // private mode
     }
-  }, [])
+    if (raw === null) return
 
-  return {
-    playlists,
-    add: (item) => persist([...playlists, { ...item, id: crypto.randomUUID() }]),
-    remove: (id) => persist(playlists.filter((p) => p.id !== id)),
-  }
-}
+    let saved = []
+    try {
+      saved = JSON.parse(raw) || []
+    } catch {
+      saved = []
+    }
 
-/**
- * Turns any Spotify share link or URI into its embed form.
- * @returns {{embed:string,kind:string,id:string}|null}
- */
-export function parseSpotify(input) {
-  if (!input) return null
-  const text = input.trim()
+    // Clear the key first: a failed write should not leave this retrying on
+    // every mount and duplicating rows.
+    try {
+      localStorage.removeItem(LEGACY_KEY)
+    } catch {
+      /* ignore */
+    }
 
-  // spotify:playlist:37i9dQ...
-  const uri = text.match(/^spotify:(playlist|album|track|artist|episode|show):([A-Za-z0-9]+)/)
-  if (uri) {
-    return { kind: uri[1], id: uri[2], embed: buildEmbed(uri[1], uri[2]) }
-  }
-
-  // https://open.spotify.com/playlist/37i9dQ...?si=...
-  // Also handles locale-prefixed links like /intl-de/playlist/...
-  const url = text.match(
-    /open\.spotify\.com\/(?:intl-[a-z-]+\/)?(playlist|album|track|artist|episode|show)\/([A-Za-z0-9]+)/
-  )
-  if (url) {
-    return { kind: url[1], id: url[2], embed: buildEmbed(url[1], url[2]) }
-  }
-
-  return null
-}
-
-function buildEmbed(kind, id) {
-  return `https://open.spotify.com/embed/${kind}/${id}?utm_source=generator&theme=0`
+    for (const item of saved) {
+      const embed = convertSpotifyUrlToEmbed(item.embed || item.url || '')
+      if (!embed) continue
+      if (playlists.some((p) => p.embed_url === embed)) continue
+      addFocusPlaylist({
+        title: item.name || defaultTitle(item.kind),
+        original_url: item.embed || '',
+        embed_url: embed,
+      })
+    }
+    // Intentionally runs once per mount-with-data; the key removal above is
+    // what actually makes it a one-shot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 }
 
 /** Search links always resolve, unlike guessed playlist IDs. */
@@ -103,21 +84,34 @@ const VIBES = [
  *   Crochet and Bowling screens; full = the Focus Mode tab.
  */
 export function FocusPlayer({ variant = 'full', className }) {
-  const { playlists, add, remove } = usePlaylists()
+  const { focusPlaylists, addFocusPlaylist, removeFocusPlaylist, ready } = useData()
   const [activeId, setActiveId] = useState(null)
   const [adding, setAdding] = useState(false)
   const [open, setOpen] = useState(variant === 'full')
 
+  useLegacyMigration(focusPlaylists, addFocusPlaylist, ready)
+
   // Default to the first saved playlist, and follow along if it is deleted.
   useEffect(() => {
-    if (playlists.length === 0) {
+    if (focusPlaylists.length === 0) {
       setActiveId(null)
-    } else if (!playlists.some((p) => p.id === activeId)) {
-      setActiveId(playlists[0].id)
+    } else if (!focusPlaylists.some((p) => p.id === activeId)) {
+      setActiveId(focusPlaylists[0].id)
     }
-  }, [playlists, activeId])
+  }, [focusPlaylists, activeId])
 
-  const active = playlists.find((p) => p.id === activeId) || null
+  const active = focusPlaylists.find((p) => p.id === activeId) || null
+
+  async function save({ title, url }) {
+    const parsed = parseSpotifyUrl(url)
+    if (!parsed) return
+    await addFocusPlaylist({
+      title: title || defaultTitle(parsed.kind),
+      original_url: url.trim(),
+      embed_url: parsed.embedUrl,
+    })
+    setAdding(false)
+  }
 
   if (variant === 'compact' && !open) {
     return (
@@ -131,7 +125,7 @@ export function FocusPlayer({ variant = 'full', className }) {
       >
         <Icon name="music" size={17} className="shrink-0 text-mint" />
         <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-          {active ? active.name : 'Focus Mode'}
+          {active ? active.title : 'Focus Mode'}
         </span>
         <Icon name="chevronDown" size={16} className="shrink-0 text-faint" />
       </button>
@@ -152,11 +146,11 @@ export function FocusPlayer({ variant = 'full', className }) {
         </div>
       )}
 
-      {playlists.length > 0 && (
+      {focusPlaylists.length > 0 && (
         <ChipRow className="mb-3">
-          {playlists.map((p) => (
+          {focusPlaylists.map((p) => (
             <Chip key={p.id} active={p.id === activeId} onClick={() => setActiveId(p.id)}>
-              {p.name}
+              {p.title}
             </Chip>
           ))}
           <Chip onClick={() => setAdding(true)}>
@@ -167,19 +161,53 @@ export function FocusPlayer({ variant = 'full', className }) {
       )}
 
       {active ? (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface">
-          <iframe
-            key={active.id}
-            title={active.name}
-            src={active.embed}
-            width="100%"
-            height={variant === 'compact' ? 152 : 352}
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-            className="block"
-          />
-        </div>
+        <>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <iframe
+              // Keyed so switching playlist swaps the player rather than trying
+              // to navigate the existing one.
+              key={active.id}
+              title={active.title}
+              src={embedSrc(active.embed_url)}
+              width="100%"
+              height={variant === 'compact' ? 152 : 352}
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              className="block"
+            />
+          </div>
+
+          {variant === 'full' && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {active.original_url && (
+                <Button
+                  as="a"
+                  variant="ghost"
+                  size="sm"
+                  href={active.original_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Icon name="share" size={15} />
+                  Open in Spotify
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => removeFocusPlaylist(active.id)}>
+                <Icon name="trash" size={15} />
+                Remove &ldquo;{active.title}&rdquo;
+              </Button>
+            </div>
+          )}
+
+          {variant === 'full' && (
+            <p className="mt-2 text-[12px] leading-snug text-faint">
+              Player showing &ldquo;Page not found&rdquo;? That playlist is one Spotify made for
+              you — Daylist, your Mixes, Discover Weekly. Those cannot be embedded by anyone,
+              owner included. An editorial playlist or one you built yourself will work.
+            </p>
+          )}
+        </>
       ) : (
         <Card className="p-4">
           <div className="flex items-start gap-3">
@@ -190,7 +218,7 @@ export function FocusPlayer({ variant = 'full', className }) {
               <p className="font-bold">No playlist saved yet</p>
               <p className="mt-1 text-[13px] leading-snug text-muted">
                 Paste a Spotify playlist link and it stays pinned to this screen — no app
-                switching mid-round.
+                switching mid-round. Saved playlists sync to every device you are signed in on.
               </p>
               <Button variant="mint" size="sm" className="mt-3" onClick={() => setAdding(true)}>
                 <Icon name="plus" size={16} />
@@ -223,36 +251,27 @@ export function FocusPlayer({ variant = 'full', className }) {
         </Card>
       )}
 
-      {active && variant === 'full' && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-2"
-          onClick={() => remove(active.id)}
-        >
-          <Icon name="trash" size={15} />
-          Remove &ldquo;{active.name}&rdquo;
-        </Button>
-      )}
-
-      <AddPlaylistModal
-        open={adding}
-        onClose={() => setAdding(false)}
-        onAdd={(item) => {
-          add(item)
-          setAdding(false)
-        }}
-      />
+      <AddPlaylistModal open={adding} onClose={() => setAdding(false)} onSave={save} />
     </div>
   )
 }
 
-function AddPlaylistModal({ open, onClose, onAdd }) {
-  const [name, setName] = useState('')
+function AddPlaylistModal({ open, onClose, onSave }) {
+  const [title, setTitle] = useState('')
   const [link, setLink] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const parsed = parseSpotify(link)
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open && !wasOpen) {
+    setWasOpen(true)
+    setTitle('')
+    setLink('')
+  }
+  if (!open && wasOpen) setWasOpen(false)
+
+  const parsed = parseSpotifyUrl(link)
   const invalid = link.trim().length > 0 && !parsed
+  const unembeddable = isLikelyUnembeddable(parsed)
 
   return (
     <Modal
@@ -268,15 +287,12 @@ function AddPlaylistModal({ open, onClose, onAdd }) {
           <Button
             variant="mint"
             full
+            loading={busy}
             disabled={!parsed}
-            onClick={() => {
-              onAdd({
-                name: name.trim() || defaultName(parsed.kind),
-                embed: parsed.embed,
-                kind: parsed.kind,
-              })
-              setName('')
-              setLink('')
+            onClick={async () => {
+              setBusy(true)
+              await onSave({ title: title.trim(), url: link })
+              setBusy(false)
             }}
           >
             Save
@@ -287,7 +303,7 @@ function AddPlaylistModal({ open, onClose, onAdd }) {
       <div className="flex flex-col gap-4 pb-2">
         <Field
           label="Spotify link"
-          hint="playlist, album or track"
+          hint="playlist, album, track or episode"
           error={invalid ? 'That does not look like a Spotify link.' : undefined}
           htmlFor="sp-link"
         >
@@ -300,27 +316,40 @@ function AddPlaylistModal({ open, onClose, onAdd }) {
             autoCorrect="off"
             inputMode="url"
           />
+          {parsed && !unembeddable && (
+            <p className="mt-1.5 text-[12px] font-semibold text-mint">
+              {defaultTitle(parsed.kind)} link — ready to embed
+            </p>
+          )}
         </Field>
+
+        {unembeddable && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber/45 bg-amber-soft/35 px-3.5 py-3">
+            <Icon name="flame" size={16} className="mt-0.5 shrink-0 text-amber" />
+            <p className="text-[13px] leading-snug">
+              <strong>This one will not play here.</strong> It is a playlist Spotify generated for
+              your account — those cannot be embedded by anyone. Save it if you like, but pick an
+              editorial playlist or one you made yourself if you want it in the app.
+            </p>
+          </div>
+        )}
 
         <Field label="Name it" hint="optional" htmlFor="sp-name">
           <Input
             id="sp-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Crochet hours"
           />
         </Field>
 
         <p className="rounded-xl bg-surface-2 px-3.5 py-3 text-[12px] leading-snug text-muted">
-          In Spotify: <strong className="text-text">Share → Copy link to playlist</strong>. Full
-          tracks need you signed in to Spotify in this browser — otherwise the embed plays 30
-          second previews.
+          In Spotify: <strong className="text-text">Share → Copy link to playlist</strong>. The
+          <code className="mx-1 rounded bg-bg px-1 py-0.5 text-[11px]">?si=</code>
+          on the end is fine, it gets stripped. Full tracks need you signed in to Spotify in this
+          browser — otherwise the embed plays 30 second previews.
         </p>
       </div>
     </Modal>
   )
-}
-
-function defaultName(kind) {
-  return kind === 'album' ? 'Album' : kind === 'track' ? 'Track' : 'Playlist'
 }

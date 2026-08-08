@@ -46,6 +46,7 @@ service cloud.firestore {
     match /custom_projects/{id}   { allow read, write: if isMember(); }
     match /crochet_tutorials/{id} { allow read, write: if isMember(); }
     match /visual_glossary/{id}   { allow read, write: if isMember(); }
+    match /focus_playlists/{id}   { allow read, write: if isMember(); }
 
     // Anything not listed above is denied.
     match /{document=**} {

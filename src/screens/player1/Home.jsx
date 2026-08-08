@@ -8,14 +8,14 @@ import { Icon } from '../../components/ui/Icon'
 import { useData } from '../../context/DataContext'
 import { stashSummary } from '../../data/engine'
 import { overallAverage, personalBest, timeAgo } from '../../lib/utils'
-import { NextUpCard } from './BowlingCalendar'
+import { NextUpCard, pickNextEvent } from './BowlingCalendar'
 
 export function Player1Home() {
   const { quests, stash, sessions, events, hype } = useData()
 
   const summary = useMemo(() => stashSummary(stash), [stash])
   const active = quests.filter((q) => q.status !== 'completed')
-  const nextEvent = events.find((e) => (e.date?.getTime?.() ?? 0) >= Date.now())
+  const nextEvent = pickNextEvent(events)
   const lastSession = sessions[0]
   const recentHype = hype.filter((h) => h.to === 'player1' && h.seen).slice(0, 3)
 

@@ -32,6 +32,7 @@ export function DataProvider({ children }) {
   const [projects, setProjects] = useState([])
   const [tutorials, setTutorials] = useState([])
   const [glossary, setGlossary] = useState([])
+  const [focusPlaylists, setFocusPlaylists] = useState([])
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function DataProvider({ children }) {
       setProjects([])
       setTutorials([])
       setGlossary([])
+      setFocusPlaylists([])
       setReady(false)
       return
     }
@@ -103,6 +105,13 @@ export function DataProvider({ children }) {
         )
       ),
       backend.db.subscribe(COLLECTIONS.glossary, (rows) => setGlossary(rows)),
+      backend.db.subscribe(COLLECTIONS.focusPlaylists, (rows) =>
+        // Oldest first: the list is a shelf she scans left to right, and having
+        // it reshuffle every time one is added would be worse than stable.
+        setFocusPlaylists(
+          rows.sort((a, b) => (a.added_at?.getTime?.() || 0) - (b.added_at?.getTime?.() || 0))
+        )
+      ),
     ]
 
     setReady(true)
@@ -126,6 +135,7 @@ export function DataProvider({ children }) {
       projects,
       tutorials,
       glossary,
+      focusPlaylists,
 
       /* ---------------------------------------------------------- quests -- */
       addQuest: (data) =>
@@ -221,6 +231,11 @@ export function DataProvider({ children }) {
         backend.db.set(c.glossary, termId, { ...data, updated_at: new Date() }),
       removeGlossaryTerm: (termId) => backend.db.remove(c.glossary, termId),
 
+      /* -------------------------------------------------- focus mode ---- */
+      addFocusPlaylist: (data) =>
+        backend.db.add(c.focusPlaylists, { added_at: new Date(), ...data }),
+      removeFocusPlaylist: (id) => backend.db.remove(c.focusPlaylists, id),
+
       /* --------------------------------------------------- matches ---- */
       addMatch: (data) => backend.db.add(c.matches, { created_at: new Date(), ...data }),
       updateMatch: (id, patch) => backend.db.update(c.matches, id, patch),
@@ -237,7 +252,7 @@ export function DataProvider({ children }) {
         backend.db.add(c.hype, { created_at: new Date(), seen: false, ...data }),
       markHypeSeen: (id) => backend.db.update(c.hype, id, { seen: true }),
     }
-  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects, tutorials, glossary])
+  }, [ready, quests, stash, sessions, events, hallOfFame, hype, patternRefs, arsenal, matches, wishlist, projects, tutorials, glossary, focusPlaylists])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

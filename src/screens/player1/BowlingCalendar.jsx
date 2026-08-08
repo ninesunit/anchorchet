@@ -8,7 +8,7 @@ import { Icon } from '../../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
 import { useCountdown } from '../../hooks/useCountdown'
 import { useData } from '../../context/DataContext'
-import { cx, daysUntil, formatDateLong } from '../../lib/utils'
+import { cx, daysUntil, formatDateLong, timeAgo } from '../../lib/utils'
 
 const localDateValue = (d) => {
   const x = d ? new Date(d) : new Date()
@@ -17,6 +17,30 @@ const localDateValue = (d) => {
 const localTimeValue = (d) => {
   const x = d ? new Date(d) : new Date()
   return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`
+}
+
+/** A tournament day runs long, so an event stays "on now" for this much of it. */
+const IN_PROGRESS_WINDOW = 8 * 60 * 60 * 1000
+
+/**
+ * The event the "Next up" card should show.
+ *
+ * Not simply the next future one: a tournament that started two hours ago is
+ * far more interesting than the one three weeks out, and the countdown card has
+ * an in-progress state for exactly that. Shared by both dashboards and the
+ * calendar tab so all three agree on what "next" means.
+ *
+ * @param {Array} events  ascending by date
+ */
+export function pickNextEvent(events) {
+  const now = Date.now()
+  const started = [...events]
+    .reverse()
+    .find((e) => {
+      const t = e.date?.getTime?.() ?? 0
+      return t <= now && now - t < IN_PROGRESS_WINDOW
+    })
+  return started ?? events.find((e) => (e.date?.getTime?.() ?? 0) > now)
 }
 
 export function BowlingCalendar({ readOnly = false }) {
@@ -33,7 +57,8 @@ export function BowlingCalendar({ readOnly = false }) {
     }
   }, [events])
 
-  const next = upcoming[0]
+  const next = pickNextEvent(events)
+  const alsoComing = upcoming.filter((e) => e.id !== next?.id)
 
   return (
     <div className="animate-fade-up">
@@ -59,11 +84,13 @@ export function BowlingCalendar({ readOnly = false }) {
         />
       ) : (
         <>
-          {upcoming.length > 1 && (
+          {/* Filtered by id, not slice(1): the hero can be an event that has
+              already started, in which case every upcoming one is still to come. */}
+          {alsoComing.length > 0 && (
             <section className="mb-7">
               <SectionTitle>Also coming up</SectionTitle>
               <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2">
-                {upcoming.slice(1).map((event) => (
+                {alsoComing.map((event) => (
                   <EventRow
                     key={event.id}
                     event={event}
@@ -160,19 +187,36 @@ export function NextUpCard({ event, compact = false }) {
             )}
           </p>
         </div>
-        {days !== null && days <= 7 && (
-          <Badge tone="ember" dot>
-            {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days} days`}
+        {countdown.started ? (
+          <Badge tone="mint" dot>
+            In progress
           </Badge>
+        ) : (
+          days !== null &&
+          days <= 7 && (
+            <Badge tone="ember" dot>
+              {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days} days`}
+            </Badge>
+          )
         )}
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2">
-        <CountUnit value={countdown.days} label="days" />
-        <CountUnit value={countdown.hours} label="hrs" />
-        <CountUnit value={countdown.minutes} label="min" />
-        <CountUnit value={countdown.seconds} label="sec" />
+        <CountUnit value={countdown.dd} label="days" dim={countdown.started} />
+        <CountUnit value={countdown.hh} label="hrs" dim={countdown.started} />
+        <CountUnit value={countdown.mm} label="min" dim={countdown.started} />
+        <CountUnit value={countdown.ss} label="sec" dim={countdown.started} />
       </div>
+
+      {countdown.started && (
+        <p className="mt-2.5 flex items-center justify-center gap-2 text-[13px] font-bold text-mint">
+          <span className="relative flex size-2 shrink-0">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-70" />
+            <span className="relative inline-flex size-2 rounded-full bg-mint" />
+          </span>
+          Started {timeAgo(event.date)}
+        </p>
+      )}
 
       {!compact && (event.call_time || event.notes) && (
         <div className="mt-3.5 flex flex-col gap-2 border-t border-border pt-3">
@@ -189,11 +233,18 @@ export function NextUpCard({ event, compact = false }) {
   )
 }
 
-function CountUnit({ value, label }) {
+function CountUnit({ value, label, dim = false }) {
   return (
     <div className="rounded-xl border border-border bg-surface px-2 py-2.5 text-center">
-      <p className="text-2xl font-extrabold tabular-nums leading-none">
-        {String(value).padStart(2, '0')}
+      {/* value arrives pre-padded, and tabular-nums keeps every digit the same
+          width — together that is what stops the boxes twitching as it ticks */}
+      <p
+        className={cx(
+          'text-2xl font-extrabold tabular-nums leading-none',
+          dim && 'text-faint'
+        )}
+      >
+        {value}
       </p>
       <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-faint">{label}</p>
     </div>
