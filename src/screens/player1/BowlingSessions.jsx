@@ -10,7 +10,7 @@ import { Sparkline } from '../../components/ui/Sparkline'
 import { PixelBall } from '../../components/PixelBall'
 import { useData } from '../../context/DataContext'
 import { OIL_ORDER, OIL_PATTERNS, ROLES } from '../../data/arsenal'
-import { BENCHMARK, benchmarkStanding } from '../../data/bowlingStats'
+import { BENCHMARK, benchmarkStanding, isSessionLive } from '../../data/bowlingStats'
 import {
   cx,
   formatDateLong,
@@ -29,12 +29,7 @@ import {
  * bowling. Sessions saved before this field existed fall back to the old
  * date check so nothing in history suddenly reopens.
  */
-const isLive = (session) => {
-  if (!session) return false
-  if (session.status === 'ended') return false
-  if (session.status === 'live') return true
-  return isToday(session.date)
-}
+const isLive = isSessionLive
 
 const isToday = (d) => {
   if (!d) return false
@@ -526,7 +521,9 @@ function SessionEditor({ session, arsenal, onClose, onSave, onDelete }) {
       // from the document without recomputing it.
       current_over_under: standing ? standing.diff : 0,
       pins_needed_next_game: standing && !standing.banked ? standing.needNext : null,
-      is_active: true,
+      // Deliberately NOT writing is_active here. Whether a session is live is
+      // owned by the Start / End / Reopen buttons alone — having the editor
+      // assert it meant adding a game to an ended session quietly restarted it.
       // Left blank means "not tracked" rather than zero, so an untracked
       // session cannot drag the spare percentage down.
       spares_converted: sparesMade === '' ? null : Number(sparesMade),

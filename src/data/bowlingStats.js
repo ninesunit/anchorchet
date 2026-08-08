@@ -154,6 +154,42 @@ export const MAX_GAME = 300
 export const BENCHMARK = 200
 
 /**
+ * Is this session still being bowled?
+ *
+ * One definition, shared by both sides, because they used to disagree: her
+ * screen keyed off `status` and his off `is_active`, and the session editor
+ * wrote `is_active: true` on every save — so adding a fifth game to a session
+ * she had already ended flipped it back to "Live from the lanes" on his phone
+ * while hers still said ended.
+ *
+ * `status` wins on purpose. It is the field the End / Reopen buttons own, and
+ * making it authoritative means documents already carrying a stale
+ * `is_active: true` heal themselves the moment this ships, with no migration.
+ *
+ * @param {object} session
+ * @returns {boolean}
+ */
+export function isSessionLive(session) {
+  if (!session) return false
+  if (session.status === 'ended') return false
+  if (session.status === 'live') return true
+  // Written before `status` existed: fall back to `is_active`, then to the
+  // old same-day guess, so nothing in history suddenly reopens.
+  if (typeof session.is_active === 'boolean') return session.is_active
+  return isSameDay(session.date, new Date())
+}
+
+function isSameDay(a, b) {
+  if (!a) return false
+  const x = new Date(a)
+  return (
+    x.getDate() === b.getDate() &&
+    x.getMonth() === b.getMonth() &&
+    x.getFullYear() === b.getFullYear()
+  )
+}
+
+/**
  * Where she stands against a per-game benchmark across a series.
  *
  * The target is cumulative: a 200 benchmark over 2 games is 400, so 386 pins is

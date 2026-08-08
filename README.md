@@ -256,6 +256,12 @@ taps *Submit proof* and photographs the done thing → it lands on his dashboard
 as "waiting for your approval" → *Approve & reveal* flips `is_revealed` and the
 blur lifts on her side over 1.4s.
 
+Both of these are also reachable from a permanent pair of tiles on each
+dashboard. They first shipped attached to content — the lifeline next to a task,
+the ransom card only when a ransom existed — which meant that on a dashboard
+with neither, two headline features were nowhere at all. A feature you have to
+already be using in order to find is not discoverable.
+
 **The Executive Dysfunction Lifeline.** A life-ring button next to every active
 chore and project, for the specific failure where the task is not hard, she
 knows exactly what to do, and she still cannot start. Three options, all of them
@@ -424,6 +430,12 @@ taps *Submit proof* and photographs the done thing → it lands on his dashboard
 as "waiting for your approval" → *Approve & reveal* flips `is_revealed` and the
 blur lifts on her side over 1.4s.
 
+Both of these are also reachable from a permanent pair of tiles on each
+dashboard. They first shipped attached to content — the lifeline next to a task,
+the ransom card only when a ransom existed — which meant that on a dashboard
+with neither, two headline features were nowhere at all. A feature you have to
+already be using in order to find is not discoverable.
+
 **The Executive Dysfunction Lifeline.** A life-ring button next to every active
 chore and project, for the specific failure where the task is not hard, she
 knows exactly what to do, and she still cannot start. Three options, all of them
@@ -473,6 +485,17 @@ so mounting more screens does not open more.
 
 **Offline.** Firestore persistent cache is on, so the app keeps working when the
 wifi drops at the alley — writes queue locally and flush on reconnect.
+
+### One definition of "live"
+
+Her screen keyed session liveness off `status`, his off `is_active`, and the
+session editor wrote `is_active: true` on every save — so adding a fifth game to
+a session she had already ended flipped his dashboard back to "Live from the
+lanes" while hers still said ended. `isSessionLive` in `data/bowlingStats.js` is
+now the single definition used by both, `status` wins over `is_active`, and the
+editor does not write liveness at all: that belongs to Start / End / Reopen
+alone. Making `status` authoritative also means documents already carrying the
+bad combination heal themselves without a migration.
 
 ### Audio, and the missing Storage bucket
 

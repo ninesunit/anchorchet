@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { RansomStrip } from '../../components/RansomStrip'
+import { SupportTiles } from '../../components/SupportTiles'
 import { Badge, QuestStatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
 import { Icon } from '../../components/ui/Icon'
 import { useData } from '../../context/DataContext'
 import { stashSummary } from '../../data/engine'
-import { BENCHMARK, benchmarkStanding } from '../../data/bowlingStats'
+import { BENCHMARK, benchmarkStanding, isSessionLive } from '../../data/bowlingStats'
 import { cx, overallAverage, personalBest, timeAgo } from '../../lib/utils'
 import { DropTutorialCard } from '../Manual'
 import { NextUpCard, pickNextEvent } from '../player1/BowlingCalendar'
@@ -32,8 +33,8 @@ export function AnchorHome() {
    * the authority — an old bug had the header hardcoded to "Live from the
    * lanes", so a session ended fourteen hours ago still claimed to be live.
    */
-  const session = sessions.find((s) => s.is_active === true || s.status === 'live') || sessions[0]
-  const isLive = Boolean(session && (session.is_active === true || session.status === 'live'))
+  const session = sessions.find(isSessionLive) || sessions[0]
+  const isLive = isSessionLive(session)
 
   /**
    * Over/under comes off the document when she has one, so his screen shows the
@@ -235,6 +236,8 @@ export function AnchorHome() {
         <Stat label="Open bounties" value={active.length} tone="ember" />
         <Stat label="Needs restock" value={restock.length} />
       </div>
+
+      <SupportTiles isPlayer2 />
 
       <RansomStrip isPlayer2 />
 

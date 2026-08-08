@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
 import { RansomStrip } from '../../components/RansomStrip'
+import { SupportTiles } from '../../components/SupportTiles'
 import { Badge, QuestStatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
@@ -23,6 +24,8 @@ export function Player1Home() {
   return (
     <div className="animate-fade-up">
       {nextEvent && <NextUpCard event={nextEvent} />}
+
+      <SupportTiles />
 
       <RansomStrip />
 
