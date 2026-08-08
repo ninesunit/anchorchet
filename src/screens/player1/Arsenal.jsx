@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { PixelBall } from '../../components/PixelBall'
 import { PixelEditor } from '../../components/PixelEditor'
 import { Badge } from '../../components/ui/Badge'
-import { Button, FloatingButton } from '../../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
 import { Field, Input, Select } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
@@ -84,6 +84,8 @@ export function Arsenal({ readOnly = false }) {
 
       {!readOnly && (
         <>
+          <FabSpacer />
+
           <FloatingButton onClick={() => setEditing({})} aria-label="Add a ball">
             <Icon name="plus" size={26} strokeWidth={2.4} />
           </FloatingButton>

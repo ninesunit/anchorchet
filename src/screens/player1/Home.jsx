@@ -44,7 +44,7 @@ export function Player1Home() {
         <SectionTitle
           action={
             <Link
-              to="/crochet/quests"
+              to="/crochet/projects"
               className="text-[13px] font-bold text-muted hover:text-text"
             >
               All quests
@@ -66,7 +66,7 @@ export function Player1Home() {
               <Card
                 key={quest.id}
                 as={Link}
-                to="/crochet/quests"
+                to="/crochet/projects"
                 interactive
                 className="flex items-center gap-3 p-3.5"
               >

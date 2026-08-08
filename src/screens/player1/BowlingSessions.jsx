@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { Badge } from '../../components/ui/Badge'
-import { Button, FloatingButton } from '../../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
 import { Field, Input, Segmented, Textarea } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
@@ -193,6 +193,8 @@ export function BowlingSessions() {
           </section>
         )
       )}
+
+      <FabSpacer />
 
       <FloatingButton onClick={() => setEditing({})} aria-label="New session">
         <Icon name="plus" size={26} strokeWidth={2.4} />

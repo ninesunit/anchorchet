@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { Badge } from '../components/ui/Badge'
-import { Button, FloatingButton } from '../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../components/ui/Button'
 import { Card, EmptyState, Stat } from '../components/ui/Card'
 import { Chip, ChipRow, Field, Input, Select, Textarea } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
@@ -93,6 +93,8 @@ export function HallOfFame() {
           ))}
         </div>
       )}
+
+      <FabSpacer />
 
       <FloatingButton onClick={() => setAdding(true)} aria-label="Add to Hall of Fame">
         <Icon name="plus" size={26} strokeWidth={2.4} />

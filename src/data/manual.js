@@ -1,104 +1,10 @@
 /**
- * Reference content for the Crafter's Manual.
+ * Content for the Crafter's Manual video library and cheat sheets.
  *
- * Glossary entries carry a `diagram` key rather than an image URL: the drawings
- * live in components/StitchDiagram.jsx so they scale, theme, and stay legible
- * at any size. A `visual_url` on a Firestore document overrides the drawing,
- * which is how a real GIF gets in later without a code change.
+ * The stitch dictionary itself lives in data/crochetSymbols.js — it is built to
+ * the Craft Yarn Council standard and carries the chart symbols, so it is a
+ * reference set rather than app copy.
  */
-
-export const GLOSSARY = [
-  {
-    id: 'anatomy',
-    abbreviation: 'Anatomy',
-    full_name: 'Anatomy of a stitch',
-    description:
-      'Looking down at your work, each stitch top is a little "V". The half nearer you is the front loop, the half further away is the back loop. Unless a pattern says otherwise, the hook goes under both.',
-    diagram: 'anatomy',
-    tier: 'basics',
-  },
-  {
-    id: 'ch',
-    abbreviation: 'CH',
-    full_name: 'Chain',
-    description:
-      'Yarn over, pull through the loop on your hook. The foundation row and the way you travel sideways. Chains are counted excluding the loop on the hook.',
-    diagram: 'chain',
-    tier: 'basics',
-  },
-  {
-    id: 'sc',
-    abbreviation: 'SC',
-    full_name: 'Single crochet',
-    description:
-      'Insert the hook, yarn over, pull up a loop (2 on the hook), yarn over, pull through both. Short and dense — the amigurumi workhorse.',
-    diagram: 'single',
-    tier: 'basics',
-  },
-  {
-    id: 'slst',
-    abbreviation: 'SL ST',
-    full_name: 'Slip stitch',
-    description:
-      'Insert the hook, yarn over, pull through the stitch and the loop in one go. Adds almost no height; used for joining rounds and travelling.',
-    diagram: 'slipStitch',
-    tier: 'basics',
-  },
-  {
-    id: 'inc',
-    abbreviation: 'INC',
-    full_name: 'Increase',
-    description:
-      'Two stitches worked into the same hole. This is what makes a flat circle grow, and what shapes the top of a head.',
-    diagram: 'increase',
-    tier: 'amigurumi',
-  },
-  {
-    id: 'dec',
-    abbreviation: 'DEC',
-    full_name: 'Decrease',
-    description:
-      'Two stitches pulled together into one. The standard version goes under both loops of both stitches and leaves a small bump.',
-    diagram: 'decrease',
-    tier: 'amigurumi',
-  },
-  {
-    id: 'invdec',
-    abbreviation: 'INV DEC',
-    full_name: 'Invisible decrease',
-    description:
-      'A decrease worked through the FRONT loops only of the next two stitches, then finished as one. Nearly disappears — use it anywhere the closing of a shape would show.',
-    diagram: 'invdec',
-    tier: 'amigurumi',
-  },
-  {
-    id: 'mr',
-    abbreviation: 'MR / MC',
-    full_name: 'Magic ring / magic circle',
-    description:
-      'An adjustable starting loop. Work your first round into it, then pull the tail to cinch the hole shut — no gap in the middle of the head.',
-    diagram: 'magicRing',
-    tier: 'amigurumi',
-  },
-  {
-    id: 'fo',
-    abbreviation: 'FO',
-    full_name: 'Fasten off',
-    description:
-      'Cut the yarn leaving a tail, yarn over and pull the tail all the way through the last loop, then weave the tail in. Leave a long tail if you still have to sew the piece on.',
-    diagram: 'fastenOff',
-    tier: 'basics',
-  },
-  {
-    id: 'loops',
-    abbreviation: 'BLO / FLO',
-    full_name: 'Back loop only / front loop only',
-    description:
-      'Work under just one half of the V. BLO leaves a visible ridge — good for a sharp edge or a joint. FLO leaves a fold line and is often used for brims and skirts.',
-    diagram: 'loops',
-    tier: 'basics',
-  },
-]
 
 /* --------------------------------------------------------- video library -- */
 

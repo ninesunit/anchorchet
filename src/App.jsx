@@ -11,7 +11,6 @@ import { Settings } from './screens/Settings'
 
 import { Player1Home } from './screens/player1/Home'
 import { CrochetSection } from './screens/player1/CrochetSection'
-import { QuestBoard } from './screens/player1/QuestBoard'
 import { ReadyToCraft } from './screens/player1/ReadyToCraft'
 import { YarnStash } from './screens/player1/YarnStash'
 import { BowlingSection } from './screens/player1/BowlingSection'
@@ -19,7 +18,6 @@ import { BowlingSessions } from './screens/player1/BowlingSessions'
 import { BowlingCalendar } from './screens/player1/BowlingCalendar'
 import { Arsenal } from './screens/player1/Arsenal'
 import { Alley } from './screens/Alley'
-import { Wishlist } from './screens/Wishlist'
 import { Manual } from './screens/Manual'
 import { Projects } from './screens/player1/Projects'
 import { FocusMode } from './screens/player1/FocusMode'
@@ -63,13 +61,15 @@ function Player1Routes() {
         <Route index element={<Player1Home />} />
 
         <Route path="crochet" element={<CrochetSection />}>
-          <Route index element={<Navigate to="quests" replace />} />
-          <Route path="quests" element={<QuestBoard />} />
-          <Route path="craft" element={<ReadyToCraft />} />
+          <Route index element={<Navigate to="projects" replace />} />
           <Route path="projects" element={<Projects />} />
-          <Route path="stash" element={<YarnStash />} />
-          <Route path="wishlist" element={<Wishlist />} />
+          <Route path="craft" element={<ReadyToCraft />} />
           <Route path="manual" element={<Manual />} />
+          <Route path="stash" element={<YarnStash />} />
+          {/* Folded into the two tabs above. Kept as redirects so his "Send a
+              quest" link and any bookmark still land somewhere real. */}
+          <Route path="quests" element={<Navigate to="/crochet/projects" replace />} />
+          <Route path="wishlist" element={<Navigate to="/crochet/stash" replace />} />
         </Route>
 
         <Route path="bowling" element={<BowlingSection />}>

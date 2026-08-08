@@ -3,6 +3,8 @@
  * instead of showing six empty states. Never used once Firebase is configured.
  */
 
+import { analyzeStitches } from './stitchAnalyzer'
+
 const iso = (daysFromNow, hour = 19) => {
   const d = new Date()
   d.setDate(d.getDate() + daysFromNow)
@@ -53,6 +55,7 @@ export function seedDemoData() {
         priority: 'high',
         reference_image_url: '',
         completion_photo_url: '',
+        suggested_stitches: analyzeStitches('1x Blue Tactibear For my desk at work. Blue one, like the in-game buddy.'),
         date_requested: iso(-9, 21),
       },
       q2: {
@@ -65,6 +68,7 @@ export function seedDemoData() {
         priority: 'normal',
         reference_image_url: '',
         completion_photo_url: '',
+        suggested_stitches: analyzeStitches('Lamball plush The round wool one. No notes, it is perfect.'),
         date_requested: iso(-3, 22),
       },
       q3: {
@@ -77,6 +81,7 @@ export function seedDemoData() {
         priority: 'normal',
         reference_image_url: '',
         completion_photo_url: '',
+        suggested_stitches: analyzeStitches('Beanie for the cold bowling alley Grey, ribbed. That place is freezing and you know it.'),
         date_requested: iso(-1, 20),
       },
       q4: {
@@ -89,6 +94,7 @@ export function seedDemoData() {
         priority: 'normal',
         reference_image_url: '',
         completion_photo_url: '',
+        suggested_stitches: analyzeStitches('Bowling pin plush Good luck charm for the bag. Small enough to clip on.'),
         date_requested: iso(-24, 18),
         date_completed: iso(-11, 16),
       },

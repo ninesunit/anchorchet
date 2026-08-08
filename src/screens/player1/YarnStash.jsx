@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 
+import { Wishlist } from '../Wishlist'
 import { ColorDot, StashStatusBadge } from '../../components/ui/Badge'
-import { Button, FloatingButton } from '../../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../../components/ui/Button'
 import { Card, EmptyState, Stat } from '../../components/ui/Card'
-import { Chip, ChipRow, Field, Input, Select, Textarea } from '../../components/ui/Field'
+import { Chip, ChipRow, Field, Input, Segmented, Select, Textarea } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
 import { useData } from '../../context/DataContext'
@@ -24,9 +25,18 @@ const STATUS_FILTERS = [
   { value: 'empty', label: 'Empty' },
 ]
 
+/**
+ * Inventory and wishlist in one tab.
+ *
+ * They are the same subject from two sides — what she has and what she wants —
+ * and splitting them across two top-level tabs meant the shortest journey in
+ * the app (ran out of a colour, so add it to the list) crossed a screen
+ * boundary. The segmented control keeps it to one tap.
+ */
 export function YarnStash() {
-  const { stash, addYarn, updateYarn, removeYarn } = useData()
+  const { stash, wishlist, addYarn, updateYarn, removeYarn } = useData()
 
+  const [view, setView] = useState('inventory')
   const [statusFilter, setStatusFilter] = useState('all')
   const [weightFilter, setWeightFilter] = useState('all')
   const [editing, setEditing] = useState(null)
@@ -49,8 +59,21 @@ export function YarnStash() {
     [stash]
   )
 
+  const wanted = wishlist.filter((w) => w.status !== 'purchased').length
+
+  if (view === 'wishlist') {
+    return (
+      <div className="animate-fade-up">
+        <StashTabs view={view} onChange={setView} wanted={wanted} />
+        <Wishlist />
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-up">
+      <StashTabs view={view} onChange={setView} wanted={wanted} />
+
       <div className="mb-4 grid grid-cols-3 gap-2.5">
         <Stat label="Balls" value={summary.balls} />
         <Stat label="Colours" value={summary.colors} />
@@ -124,6 +147,8 @@ export function YarnStash() {
         </div>
       )}
 
+      <FabSpacer />
+
       <FloatingButton onClick={() => setEditing({})} aria-label="Add yarn">
         <Icon name="plus" size={26} strokeWidth={2.4} />
       </FloatingButton>
@@ -151,6 +176,21 @@ export function YarnStash() {
         confirmLabel="Remove"
       />
     </div>
+  )
+}
+
+/** The one control that switches between the two halves of this tab. */
+function StashTabs({ view, onChange, wanted }) {
+  return (
+    <Segmented
+      className="mb-4"
+      value={view}
+      onChange={onChange}
+      options={[
+        { value: 'inventory', label: 'My Inventory' },
+        { value: 'wishlist', label: wanted ? `Wishlist · ${wanted}` : 'Wishlist' },
+      ]}
+    />
   )
 }
 

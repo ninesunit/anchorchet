@@ -87,6 +87,18 @@ export function Spinner({ className }) {
  * enough to make it a containing block, which would anchor this `fixed` button
  * to the scrolling content instead of the viewport.
  */
+/**
+ * Reserves the space the floating button covers.
+ *
+ * The FAB is portalled to <body> and fixed to the viewport, so it happily sits
+ * on top of the last card in a list — usually right over that card's rightmost
+ * button. Every screen with a FAB renders one of these at the end of its
+ * content so the last row can always be reached.
+ */
+export function FabSpacer() {
+  return <div aria-hidden="true" className="h-20 md:h-6" />
+}
+
 export function FloatingButton({ className, children, ...rest }) {
   return createPortal(
     <Button

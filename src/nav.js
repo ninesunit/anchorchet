@@ -17,13 +17,14 @@ export const NAV = {
 }
 
 export const SUBNAV = {
+  // Four tabs, in this order. Quests live inside My Projects and the wishlist
+  // lives inside Yarn Stash — one destination per thing she is actually doing,
+  // rather than one per collection.
   '/crochet': [
-    { to: '/crochet/quests', label: 'Quest Board' },
-    { to: '/crochet/craft', label: 'Ready to Craft' },
     { to: '/crochet/projects', label: 'My Projects' },
-    { to: '/crochet/stash', label: 'Yarn Stash' },
-    { to: '/crochet/wishlist', label: 'Wishlist' },
+    { to: '/crochet/craft', label: 'Ready to Craft' },
     { to: '/crochet/manual', label: 'Manual' },
+    { to: '/crochet/stash', label: 'Yarn Stash' },
   ],
   '/bowling': [
     { to: '/bowling/sessions', label: 'Sessions' },

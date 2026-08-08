@@ -1,32 +1,87 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { Badge, ColorDot } from '../../components/ui/Badge'
-import { Button, FloatingButton } from '../../components/ui/Button'
-import { Card, EmptyState, Stat } from '../../components/ui/Card'
-import { Chip, ChipRow, Field, Input, Textarea } from '../../components/ui/Field'
+import { StitchQuickView } from '../../components/StitchQuickView'
+import { StitchSymbol } from '../../components/StitchSymbol'
+import { Badge, ColorDot, QuestStatusBadge, TierBadge } from '../../components/ui/Badge'
+import { Button, FabSpacer, FloatingButton } from '../../components/ui/Button'
+import { Card, EmptyState, SectionTitle, Stat } from '../../components/ui/Card'
+import { Chip, ChipRow, Field, Input, Segmented, Textarea } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { ImagePicker } from '../../components/ui/ImagePicker'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
+import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { yarnSwatch } from '../../data/colors'
+import { stitchFromLabel } from '../../data/crochetSymbols'
+import { evaluatePattern } from '../../data/engine'
+import { PATTERNS_BY_ID, SERIES } from '../../data/patterns'
 import { cx, fmtQty, timeAgo } from '../../lib/utils'
 
-export function Projects() {
-  const { projects, stash, addProject, updateProject, removeProject, updateYarn } = useData()
+/**
+ * A bounty she has not dealt with yet.
+ *
+ * Deliberately "anything not finished" rather than a status allowlist: the
+ * board carries documents written before this tab existed, with statuses like
+ * `accepted` and `in_progress` that no longer have a home of their own. Keying
+ * off completion means an old quest surfaces instead of silently vanishing.
+ */
+const isOpenQuest = (q) => q.status !== 'completed'
 
+export function Projects() {
+  const {
+    projects,
+    quests,
+    stash,
+    addProject,
+    updateProject,
+    removeProject,
+    updateQuest,
+    updateYarn,
+    addTrophy,
+  } = useData()
+  const { profile } = useAuth()
+
+  const [view, setView] = useState('projects')
   const [editing, setEditing] = useState(null)
   const [logging, setLogging] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [filter, setFilter] = useState('in_progress')
+  const [openStitch, setOpenStitch] = useState(null)
+  const [completing, setCompleting] = useState(null)
 
   const live = projects.filter((p) => p.status !== 'completed')
   const done = projects.filter((p) => p.status === 'completed')
   const visible = filter === 'in_progress' ? live : filter === 'completed' ? done : projects
 
+  // A quest she has already turned into a project must not offer "Accept" again.
+  const acceptedIds = new Set(projects.map((p) => p.linked_quest_id).filter(Boolean))
+  const openQuests = quests.filter((q) => isOpenQuest(q) && !acceptedIds.has(q.id))
+  const questsDone = quests.filter((q) => q.status === 'completed')
+
   const totalUsed = projects.reduce(
     (n, p) => n + (p.yarns_used || []).reduce((m, y) => m + (Number(y.quantity_used) || 0), 0),
     0
   )
+
+  /**
+   * Accepting a bounty.
+   *
+   * Two writes, deliberately: the quest is marked accepted so it leaves his
+   * board, and a project is created carrying the title, the reference photo and
+   * the analyzer's stitch tags. From that point she works the project — the
+   * quest is only the request that started it.
+   */
+  async function acceptQuest(quest) {
+    await addProject({
+      title: quest.title,
+      note: quest.note || '',
+      linked_quest_id: quest.id,
+      required_stitches: quest.suggested_stitches || [],
+      reference_images: quest.reference_image_url ? [quest.reference_image_url] : [],
+    })
+    await updateQuest(quest.id, { status: 'accepted' })
+    setView('projects')
+  }
 
   /**
    * Logging usage does two writes: it appends to the project's ledger and
@@ -69,58 +124,115 @@ export function Projects() {
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-4 grid grid-cols-3 gap-2.5">
-        <Stat label="On the hook" value={live.length} tone="amber" />
-        <Stat label="Finished" value={done.length} tone="mint" />
-        <Stat label="Skeins used" value={fmtQty(totalUsed)} />
-      </div>
+      <Segmented
+        className="mb-4"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'projects', label: `Active · ${live.length}` },
+          {
+            value: 'quests',
+            label: openQuests.length ? `Anchor quests · ${openQuests.length}` : 'Anchor quests',
+          },
+        ]}
+      />
 
-      <ChipRow className="mb-4">
-        <Chip active={filter === 'in_progress'} onClick={() => setFilter('in_progress')}>
-          In progress · {live.length}
-        </Chip>
-        <Chip active={filter === 'completed'} onClick={() => setFilter('completed')}>
-          Finished · {done.length}
-        </Chip>
-        <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
-          Everything
-        </Chip>
-      </ChipRow>
+      {view === 'projects' ? (
+        <>
+          <div className="mb-4 grid grid-cols-3 gap-2.5">
+            <Stat label="On the hook" value={live.length} tone="amber" />
+            <Stat label="Finished" value={done.length} tone="mint" />
+            <Stat label="Skeins used" value={fmtQty(totalUsed)} />
+          </div>
 
-      {visible.length === 0 ? (
-        <EmptyState
-          icon={<Icon name="yarn" size={30} />}
-          title="No projects yet"
-          body="Anything you are making that is not from the catalogue lives here — your own patterns, gifts, experiments."
-          action={
-            <Button variant="primary" onClick={() => setEditing({})}>
-              <Icon name="plus" size={18} />
-              Start a project
-            </Button>
-          }
-        />
-      ) : (
-        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2">
-          {visible.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onEdit={() => setEditing(project)}
-              onLog={() => setLogging(project)}
-              onToggleDone={() =>
-                updateProject(project.id, {
-                  status: project.status === 'completed' ? 'in_progress' : 'completed',
-                  completed_at: project.status === 'completed' ? null : new Date(),
-                })
+          {openQuests.length > 0 && (
+            <button
+              onClick={() => setView('quests')}
+              className="mb-4 flex w-full items-center gap-3 rounded-xl border border-ember/40 bg-ember-soft/25 p-3.5 text-left"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-ember text-white">
+                <Icon name="quest" size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-bold leading-tight">
+                  {openQuests.length} bount{openQuests.length === 1 ? 'y' : 'ies'} waiting
+                </span>
+                <span className="block truncate text-[12px] text-muted">
+                  {openQuests[0].title}
+                  {openQuests.length > 1 ? ` +${openQuests.length - 1} more` : ''}
+                </span>
+              </span>
+              <Icon name="chevron" size={17} className="shrink-0 text-ember" />
+            </button>
+          )}
+
+          <ChipRow className="mb-4">
+            <Chip active={filter === 'in_progress'} onClick={() => setFilter('in_progress')}>
+              In progress · {live.length}
+            </Chip>
+            <Chip active={filter === 'completed'} onClick={() => setFilter('completed')}>
+              Finished · {done.length}
+            </Chip>
+            <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
+              Everything
+            </Chip>
+          </ChipRow>
+
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={<Icon name="yarn" size={30} />}
+              title="No projects yet"
+              body="Everything you are making lives here — your own patterns, gifts, experiments, and any bounty you accept from Player 2."
+              action={
+                <Button variant="primary" onClick={() => setEditing({})}>
+                  <Icon name="plus" size={18} />
+                  Start a project
+                </Button>
               }
             />
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2">
+              {visible.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onEdit={() => setEditing(project)}
+                  onLog={() => setLogging(project)}
+                  onStitch={setOpenStitch}
+                  onToggleDone={() => {
+                    const finishing = project.status !== 'completed'
+                    // Finishing a bounty is also finishing the quest, and that
+                    // is what earns the Hall of Fame entry — so ask for the
+                    // photo rather than silently closing it.
+                    if (finishing && project.linked_quest_id) {
+                      setCompleting(project)
+                      return
+                    }
+                    updateProject(project.id, {
+                      status: finishing ? 'completed' : 'in_progress',
+                      completed_at: finishing ? new Date() : null,
+                    })
+                  }}
+                />
+              ))}
+            </div>
+          )}
 
-      <FloatingButton onClick={() => setEditing({})} aria-label="New project">
-        <Icon name="plus" size={26} strokeWidth={2.4} />
-      </FloatingButton>
+          <FabSpacer />
+
+          <FloatingButton onClick={() => setEditing({})} aria-label="New project">
+            <Icon name="plus" size={26} strokeWidth={2.4} />
+          </FloatingButton>
+        </>
+      ) : (
+        <QuestSection
+          open={openQuests}
+          done={questsDone}
+          stash={stash}
+          onAccept={acceptQuest}
+          onStitch={setOpenStitch}
+        />
+      )}
 
       <ProjectEditor
         project={editing}
@@ -153,11 +265,81 @@ export function Projects() {
         title="Delete this project?"
         body="Yarn already logged against it stays deducted from your stash."
       />
+
+      <StitchQuickView
+        stitch={openStitch?.stitch}
+        label={openStitch?.label}
+        onClose={() => setOpenStitch(null)}
+      />
+
+      <CompleteQuestModal
+        project={completing}
+        onClose={() => setCompleting(null)}
+        onSubmit={async ({ photo, caption }) => {
+          await updateProject(completing.id, {
+            status: 'completed',
+            completed_at: new Date(),
+            progress_photos: photo
+              ? [photo, ...(completing.progress_photos || [])]
+              : completing.progress_photos || [],
+          })
+          await updateQuest(completing.linked_quest_id, {
+            status: 'completed',
+            completion_photo_url: photo || '',
+            date_completed: new Date(),
+          })
+          await addTrophy({
+            title: completing.title,
+            quest_id: completing.linked_quest_id,
+            kind: 'finished',
+            caption,
+            image_url: photo || '',
+            uploaded_by: profile?.role || 'player1',
+          })
+          setCompleting(null)
+        }}
+      />
     </div>
   )
 }
 
-function ProjectCard({ project, onEdit, onLog, onToggleDone }) {
+/* ------------------------------------------------------- suggested stitches -- */
+
+/**
+ * The pills on a bounty.
+ *
+ * Player 2 cannot tell her which stitches a thing needs, so the analyzer does
+ * it from the title when he files it. Tapping one opens the Manual entry for
+ * that stitch without leaving the project.
+ */
+function StitchPills({ labels, onStitch, className }) {
+  if (!labels?.length) return null
+
+  return (
+    <div className={className}>
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-faint">
+        Suggested stitches
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {labels.map((label) => {
+          const stitch = stitchFromLabel(label)
+          return (
+            <button
+              key={label}
+              onClick={() => onStitch({ stitch, label })}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-violet/45 bg-violet-soft/40 px-2.5 text-[12px] font-bold text-violet transition active:scale-[0.97]"
+            >
+              {stitch && <StitchSymbol name={stitch.symbol} size={13} />}
+              {label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ProjectCard({ project, onEdit, onLog, onToggleDone, onStitch }) {
   const used = project.yarns_used || []
   const cover = project.progress_photos?.[0] || project.reference_images?.[0]
   const done = project.status === 'completed'
@@ -168,21 +350,26 @@ function ProjectCard({ project, onEdit, onLog, onToggleDone }) {
         <img src={cover} alt="" className="max-h-48 w-full bg-surface-2 object-cover" />
       )}
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-start justify-between gap-2">
-          <button onClick={onEdit} className="min-w-0 flex-1 text-left">
-            <h3 className={cx('truncate font-extrabold leading-tight', done && 'line-through')}>
-              {project.title}
-            </h3>
-            <p className="mt-0.5 text-[12px] text-faint">{timeAgo(project.created_at)}</p>
-          </button>
-          <Badge tone={done ? 'mint' : 'amber'} dot>
-            {done ? 'Finished' : 'In progress'}
-          </Badge>
-        </div>
+        <button onClick={onEdit} className="w-full text-left">
+          {/* Two badges on the title line left about six characters of a real
+              project name visible on a phone, so they get their own row. */}
+          <h3 className={cx('font-extrabold leading-tight', done && 'line-through')}>
+            {project.title}
+          </h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {project.linked_quest_id && <Badge tone="ember">Bounty</Badge>}
+            <Badge tone={done ? 'mint' : 'amber'} dot>
+              {done ? 'Finished' : 'In progress'}
+            </Badge>
+            <span className="text-[12px] text-faint">{timeAgo(project.created_at)}</span>
+          </div>
+        </button>
 
         {project.note && (
           <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted">{project.note}</p>
         )}
+
+        <StitchPills labels={project.required_stitches} onStitch={onStitch} className="mt-3" />
 
         {used.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -209,6 +396,217 @@ function ProjectCard({ project, onEdit, onLog, onToggleDone }) {
         </div>
       </div>
     </Card>
+  )
+}
+
+/* -------------------------------------------------------- anchor quests -- */
+
+function QuestSection({ open, done, stash, onAccept, onStitch }) {
+  return (
+    <div className="animate-fade-up">
+      {open.length === 0 && done.length === 0 ? (
+        <EmptyState
+          icon={<Icon name="quest" size={30} />}
+          title="No bounties yet"
+          body="Player 2 fills this board. When a request lands, it shows up here with the reward attached — accept it and it becomes a project."
+        />
+      ) : (
+        <>
+          {open.length > 0 && (
+            <section className="mb-7">
+              <SectionTitle>Waiting on you · {open.length}</SectionTitle>
+              <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2">
+                {open.map((quest) => (
+                  <QuestCard
+                    key={quest.id}
+                    quest={quest}
+                    stash={stash}
+                    onAccept={() => onAccept(quest)}
+                    onStitch={onStitch}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {open.length === 0 && (
+            <EmptyState
+              icon={<Icon name="check" size={30} />}
+              title="All caught up"
+              body="Every bounty he has sent is either on your hook or already finished."
+            />
+          )}
+
+          {done.length > 0 && (
+            <section>
+              <SectionTitle>Completed · {done.length}</SectionTitle>
+              <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2">
+                {done.map((quest) => (
+                  <QuestCard key={quest.id} quest={quest} stash={stash} onStitch={onStitch} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function QuestCard({ quest, stash, onAccept, onStitch }) {
+  const pattern = quest.pattern_id ? PATTERNS_BY_ID[quest.pattern_id] : null
+
+  // Tells her at a glance whether she can start this one without shopping.
+  const craftable = useMemo(
+    () => (pattern ? evaluatePattern(pattern, stash) : null),
+    [pattern, stash]
+  )
+
+  return (
+    <Card
+      className={cx(
+        'flex flex-col overflow-hidden',
+        quest.priority === 'high' && quest.status !== 'completed' && 'border-ember/45'
+      )}
+    >
+      {(quest.reference_image_url || quest.completion_photo_url) && (
+        <img
+          src={quest.completion_photo_url || quest.reference_image_url}
+          alt=""
+          className="max-h-48 w-full bg-surface-2 object-cover"
+        />
+      )}
+
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[16px] font-extrabold leading-tight">{quest.title}</h3>
+          <QuestStatusBadge status={quest.status} />
+        </div>
+
+        <p className="mt-1 text-[12px] text-faint">
+          {quest.requested_by || 'Player 2'} · {timeAgo(quest.date_requested || quest.created_at)}
+        </p>
+
+        {quest.note && (
+          <p className="mt-2.5 text-[14px] leading-relaxed text-muted">{quest.note}</p>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {pattern && (
+            <>
+              <TierBadge tier={pattern.tier} />
+              <Badge>{SERIES[pattern.series].label}</Badge>
+              <Badge>~{pattern.hours}h</Badge>
+            </>
+          )}
+          {quest.priority === 'high' && quest.status !== 'completed' && (
+            <Badge tone="ember" dot>
+              Priority
+            </Badge>
+          )}
+        </div>
+
+        <StitchPills labels={quest.suggested_stitches} onStitch={onStitch} className="mt-3.5" />
+
+        {quest.reward && (
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber/40 bg-amber-soft/40 px-3 py-2.5">
+            <Icon name="trophy" size={17} className="mt-0.5 shrink-0 text-amber" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-amber">Reward</p>
+              <p className="text-[14px] leading-snug text-text">{quest.reward}</p>
+            </div>
+          </div>
+        )}
+
+        {craftable && quest.status !== 'completed' && (
+          <div
+            className={cx(
+              'mt-2.5 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium',
+              craftable.status === 'ready' ? 'bg-mint-soft/50 text-mint' : 'bg-surface-2 text-muted'
+            )}
+          >
+            <Icon name={craftable.status === 'ready' ? 'check' : 'cart'} size={15} strokeWidth={2.4} />
+            {craftable.status === 'ready'
+              ? 'You already have all the yarn for this'
+              : `Missing ${craftable.missing.length} colour${craftable.missing.length > 1 ? 's' : ''}`}
+          </div>
+        )}
+
+        {onAccept && (
+          <Button variant="primary" full className="mt-4" onClick={onAccept}>
+            <Icon name="check" size={17} strokeWidth={2.4} />
+            Accept — start a project
+          </Button>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/** Finishing a bounty: photo, caption, Hall of Fame. */
+function CompleteQuestModal({ project, onClose, onSubmit }) {
+  const [photo, setPhoto] = useState('')
+  const [caption, setCaption] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const [seed, setSeed] = useState(null)
+  if (project && seed !== project) {
+    setSeed(project)
+    setPhoto('')
+    setCaption('')
+  }
+  if (!project && seed !== null) setSeed(null)
+
+  return (
+    <Modal
+      open={Boolean(project)}
+      onClose={onClose}
+      title="Finished it?"
+      subtitle={project?.title}
+      footer={
+        <>
+          <Button variant="soft" full onClick={onClose}>
+            Not yet
+          </Button>
+          <Button
+            variant="mint"
+            full
+            loading={busy}
+            onClick={async () => {
+              setBusy(true)
+              await onSubmit({ photo, caption: caption.trim() })
+              setBusy(false)
+            }}
+          >
+            Complete it
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 pb-2">
+        <p className="text-[15px] leading-relaxed text-muted">
+          This closes the bounty too. Add a photo and it goes straight into the Hall of Fame —
+          Player 2 sees it the moment you save.
+        </p>
+
+        <ImagePicker
+          value={photo}
+          onChange={setPhoto}
+          label="Photo of the finished thing"
+          hint="Optional, but this is the fun part"
+        />
+
+        <Field label="Caption" hint="optional" htmlFor="complete-caption">
+          <Textarea
+            id="complete-caption"
+            rows={2}
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="How it went, what fought you, how long it took…"
+          />
+        </Field>
+      </div>
+    </Modal>
   )
 }
 

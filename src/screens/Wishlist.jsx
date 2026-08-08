@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { Badge, ColorDot } from '../components/ui/Badge'
-import { Button, FloatingButton } from '../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../components/ui/Button'
 import { Card, EmptyState, Stat } from '../components/ui/Card'
 import { Chip, ChipRow, Field, Input, Select, Textarea } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
@@ -147,9 +147,12 @@ export function Wishlist() {
       )}
 
       {!isPlayer2 && (
-        <FloatingButton onClick={() => setEditing({})} aria-label="Add to wishlist">
-          <Icon name="plus" size={26} strokeWidth={2.4} />
-        </FloatingButton>
+        <>
+          <FabSpacer />
+          <FloatingButton onClick={() => setEditing({})} aria-label="Add to wishlist">
+            <Icon name="plus" size={26} strokeWidth={2.4} />
+          </FloatingButton>
+        </>
       )}
 
       <WishEditor

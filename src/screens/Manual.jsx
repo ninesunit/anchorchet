@@ -1,17 +1,24 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { StitchDiagram } from '../components/StitchDiagram'
-import { Badge } from '../components/ui/Badge'
+import { StitchQuickView } from '../components/StitchQuickView'
+import { StitchSymbol } from '../components/StitchSymbol'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, SectionTitle } from '../components/ui/Card'
-import { Chip, ChipRow, Field, Input, Select } from '../components/ui/Field'
+import { Chip, ChipRow, Field, Input, Segmented, Select } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
 import { ConfirmDialog, Modal } from '../components/ui/Modal'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import {
-  GLOSSARY,
+  CHART_RULES,
+  GROUPS,
+  STITCHES,
+  STITCHES_BY_ID,
+  US_UK_TERMS,
+} from '../data/crochetSymbols'
+import {
   HOOK_CONVERSION,
   TUTORIAL_TIERS,
   TUTORIAL_TOPICS,
@@ -357,96 +364,189 @@ function DropTutorialModal({ open, onClose, onAdd, defaultCategory }) {
 function Glossary() {
   const { glossary } = useData()
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState('anatomy')
+  const [open, setOpen] = useState(null)
+  const [dialect, setDialect] = useState('us')
 
   // Firestore entries win over the built-ins with the same id, so a term can be
-  // corrected or given a real GIF without touching the code.
+  // corrected or given a real photo without touching the code.
   const merged = useMemo(() => {
     const custom = Object.fromEntries(glossary.map((g) => [g.id, g]))
-    const base = GLOSSARY.map((g) => ({ ...g, ...custom[g.id] }))
-    const extra = glossary.filter((g) => !GLOSSARY.some((b) => b.id === g.id))
-    return [...base, ...extra]
+    return STITCHES.map((s) => ({ ...s, ...custom[s.id] }))
   }, [glossary])
 
-  const visible = merged.filter((g) => {
-    const q = query.trim().toLowerCase()
-    if (!q) return true
-    return `${g.abbreviation} ${g.full_name} ${g.description}`.toLowerCase().includes(q)
-  })
+  const q = query.trim().toLowerCase()
+  const visible = merged.filter((s) =>
+    q
+      ? `${s.abbr} ${s.name} ${s.uk?.abbr} ${s.uk?.name} ${s.how} ${s.use}`
+          .toLowerCase()
+          .includes(q)
+      : true
+  )
 
   return (
-    <div>
-      <div className="relative mb-4">
-        <Icon
-          name="search"
-          size={17}
-          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint"
-        />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search a term…"
-          className="pl-10"
-          type="search"
-          autoCapitalize="none"
-        />
+    <div className="flex flex-col gap-5">
+      <ChartPrimer />
+
+      <div>
+        <div className="mb-3 flex gap-2.5">
+          <div className="relative min-w-0 flex-1">
+            <Icon
+              name="search"
+              size={17}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint"
+            />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a stitch…"
+              className="pl-10"
+              type="search"
+              autoCapitalize="none"
+            />
+          </div>
+          <Segmented
+            className="w-32 shrink-0"
+            size="sm"
+            value={dialect}
+            onChange={setDialect}
+            options={[
+              { value: 'us', label: 'US' },
+              { value: 'uk', label: 'UK' },
+            ]}
+          />
+        </div>
+
+        {dialect === 'uk' && (
+          <p className="mb-3 rounded-xl border border-amber/40 bg-amber-soft/30 px-3.5 py-2.5 text-[12px] leading-snug">
+            Showing <strong>UK</strong> names. Most patterns online are US — if one calls a short
+            dense stitch &ldquo;dc&rdquo;, it is British and means our SC.
+          </p>
+        )}
+
+        {visible.length === 0 ? (
+          <EmptyState
+            icon={<Icon name="search" size={28} />}
+            title="No match"
+            body="Try the abbreviation, like INV DEC, BLO or HDC."
+          />
+        ) : (
+          GROUPS.map((group) => {
+            const rows = visible.filter((s) => s.group === group.id)
+            if (rows.length === 0) return null
+            return (
+              <section key={group.id} className="mb-5">
+                <SectionTitle>{group.label}</SectionTitle>
+                <p className="-mt-2 mb-2.5 text-[12px] text-faint">{group.blurb}</p>
+                <div className="flex flex-col gap-2 xl:grid xl:grid-cols-2">
+                  {rows.map((stitch) => (
+                    <StitchRow
+                      key={stitch.id}
+                      stitch={stitch}
+                      dialect={dialect}
+                      onOpen={() => setOpen(stitch)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })
+        )}
       </div>
 
-      {visible.length === 0 ? (
-        <EmptyState
-          icon={<Icon name="search" size={28} />}
-          title="No match"
-          body="Try the abbreviation, like INV DEC or BLO."
-        />
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {visible.map((term) => {
-            const expanded = open === term.id
-            return (
-              <Card key={term.id} className="overflow-hidden">
-                <button
-                  onClick={() => setOpen(expanded ? null : term.id)}
-                  aria-expanded={expanded}
-                  className="flex w-full items-center gap-3 p-3.5 text-left"
-                >
-                  <span className="grid min-w-14 shrink-0 place-items-center rounded-lg bg-surface-2 px-2 py-1 text-[13px] font-extrabold tracking-tight">
-                    {term.abbreviation}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold leading-tight">
-                      {term.full_name}
-                    </span>
-                  </span>
-                  {term.tier === 'amigurumi' && <Badge tone="violet">Ami</Badge>}
-                  <Icon
-                    name="chevronDown"
-                    size={18}
-                    className={cx('shrink-0 text-faint transition', expanded && 'rotate-180')}
-                  />
-                </button>
+      <StitchQuickView stitch={open} onClose={() => setOpen(null)} />
+    </div>
+  )
+}
 
-                {expanded && (
-                  <div className="border-t border-border p-3.5">
-                    <div className="mb-3 rounded-xl border border-border bg-surface-2/60 p-2">
-                      {term.visual_url ? (
-                        <img
-                          src={term.visual_url}
-                          alt={term.full_name}
-                          className="mx-auto max-h-56 w-full object-contain"
-                        />
-                      ) : (
-                        <StitchDiagram name={term.diagram} />
-                      )}
-                    </div>
-                    <p className="text-[14px] leading-relaxed text-muted">{term.description}</p>
-                  </div>
-                )}
-              </Card>
-            )
-          })}
+function StitchRow({ stitch, dialect, onOpen }) {
+  const label = dialect === 'uk' && stitch.uk ? stitch.uk : { abbr: stitch.abbr, name: stitch.name }
+
+  return (
+    <button
+      onClick={onOpen}
+      className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-surface p-3 text-left transition hover:border-border-strong"
+    >
+      <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-surface-2 text-text">
+        <StitchSymbol name={stitch.symbol} size={26} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-[15px] font-extrabold leading-tight">{label.name}</span>
+          <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-extrabold tracking-tight text-muted">
+            {label.abbr}
+          </span>
+        </span>
+        <span className="mt-0.5 block truncate text-[12px] text-faint">
+          {stitch.yarnOvers > 0
+            ? `${stitch.yarnOvers} yarn over${stitch.yarnOvers === 1 ? '' : 's'}`
+            : 'no yarn over'}
+          {stitch.ami ? ' · amigurumi' : ''}
+          {stitch.ukTrap && dialect === 'us' ? ` · UK calls it ${stitch.uk.abbr}` : ''}
+        </span>
+      </span>
+      <Icon name="chevron" size={17} className="shrink-0 text-faint" />
+    </button>
+  )
+}
+
+/** The mental model, up front, before the list of symbols. */
+function ChartPrimer() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Card className="overflow-hidden border-mint/35 bg-mint-soft/20">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 p-4 text-left"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-mint text-[#05231f]">
+          <Icon name="book" size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold leading-tight">Reading a chart is reading letters</span>
+          <span className="mt-1 block text-[13px] leading-snug text-muted">
+            Each symbol is one stitch. Strung together they spell a pattern.
+          </span>
+        </span>
+        <Icon
+          name="chevronDown"
+          size={18}
+          className={cx('mt-1 shrink-0 text-faint transition', open && 'rotate-180')}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t border-mint/25 p-4 pt-3.5">
+          <div className="flex flex-col gap-3.5">
+            {CHART_RULES.map((rule) => (
+              <div key={rule.title}>
+                <p className="text-[13px] font-extrabold">{rule.title}</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{rule.body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* the crossbar rule, shown rather than described */}
+          <div className="mt-4 rounded-xl border border-border bg-bg p-3">
+            <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wider text-faint">
+              One slash = one yarn over
+            </p>
+            <div className="flex items-end justify-center gap-4">
+              {['sc', 'hdc', 'dc', 'tr', 'dtr'].map((id) => {
+                const s = STITCHES_BY_ID[id]
+                return (
+                  <span key={id} className="flex flex-col items-center gap-1">
+                    <StitchSymbol name={s.symbol} size={26} />
+                    <span className="text-[10px] font-extrabold text-muted">{s.abbr}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -455,6 +555,70 @@ function Glossary() {
 function CheatSheets() {
   return (
     <div className="flex flex-col gap-7">
+      <section>
+        <SectionTitle>US ↔ UK terms</SectionTitle>
+        <Card className="overflow-hidden">
+          <div className="flex items-center gap-2.5 border-b border-border bg-amber-soft/35 px-3.5 py-3">
+            <Icon name="flame" size={17} className="shrink-0 text-amber" />
+            <p className="text-[13px] leading-snug">
+              Every US term shifts one place down the UK list, so both use the same words for
+              different stitches. This is the table to check before starting any pattern you did
+              not write.
+            </p>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2">
+            <p className="px-3.5 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider text-faint">
+              United States
+            </p>
+            <span />
+            <p className="px-3.5 pb-1 pt-3 text-right text-[11px] font-bold uppercase tracking-wider text-faint">
+              United Kingdom
+            </p>
+            {US_UK_TERMS.map((row) => (
+              <Fragment key={row.us}>
+                <p className="border-t border-border px-3.5 py-2.5 text-[13px] font-semibold">
+                  {row.us}
+                </p>
+                <span className="border-t border-border py-2.5 text-faint">
+                  <Icon name="chevron" size={14} />
+                </span>
+                <p
+                  className={cx(
+                    'border-t border-border px-3.5 py-2.5 text-right text-[13px] font-semibold',
+                    row.trap && 'text-amber'
+                  )}
+                >
+                  {row.uk}
+                </p>
+              </Fragment>
+            ))}
+          </div>
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle>Symbol quick reference</SectionTitle>
+        <Card className="p-3.5">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">
+            {STITCHES.map((s) => (
+              <div
+                key={s.id}
+                className="flex flex-col items-center gap-1 rounded-xl bg-surface-2/60 px-1 py-2.5"
+              >
+                <StitchSymbol name={s.symbol} size={28} />
+                <span className="text-[10px] font-extrabold tracking-tight text-muted">
+                  {s.abbr}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] leading-snug text-faint">
+            Craft Yarn Council standard symbols. Tap any of them in the Glossary tab for the full
+            entry.
+          </p>
+        </Card>
+      </section>
+
       <section>
         <SectionTitle>Yarn weight → hook size</SectionTitle>
         <Card className="p-3.5">

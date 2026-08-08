@@ -187,9 +187,23 @@ screen**. In a normal Safari tab the permission request is a no-op.
 
 ## Modules
 
-**Crochet quests.** Player 2 files bounties with a reference photo and a reward;
-Player 1 accepts → starts → completes them. Completing one prompts for a photo
-and posts it to the Hall of Fame automatically.
+**My Projects (bounties included).** Her four Crochet tabs are *My Projects,
+Ready to Craft, Manual, Yarn Stash* — one destination per thing she is doing,
+rather than one per collection. Quests live inside My Projects behind a
+segmented control: Player 2's bounties arrive on the *Anchor quests* side, and
+accepting one writes a project carrying the title, the reference photo and the
+stitch tags, then marks the quest accepted. Finishing that project closes the
+bounty and posts to the Hall of Fame in the same step.
+
+**Smart Quest stitch tagging.** Player 2 does not crochet and cannot tell her
+which stitches a thing needs — but "Palworld Depresso plushie" is enough to
+know, because construction follows category. A local keyword pass over the
+title and note (`data/stitchAnalyzer.js`) tags the quest before the write:
+soft toys get MR / SC / INV DEC, wearables get CH / DC / HDC, flat pieces get
+CH / SL ST / turning chain. He sees what it worked out while he types; she sees
+the tags as pills on the bounty, and tapping one opens that stitch's Manual
+entry without leaving the project. Word-boundary matched, so "toy" does not
+fire on "Tokyo", and no match writes an empty array rather than a wrong guess.
 
 **Ready to Craft.** Cross-references the live yarn stash against a catalogue of
 ~56 patterns — Valorant buddies, Palworld pals, plus everyday beanies, bags and
@@ -214,8 +228,11 @@ Pinterest, Ravelry and YouTube. Either player can pin a real photo to a pattern;
 it syncs to both phones and replaces the placeholder everywhere. Real photos are
 not bundled — the game characters are somebody else's artwork.
 
-**Wishlist / Buy requests.** She adds yarn, kits or tools with a Shopee or
-TikTok Shop link (a missing `https://` is added, or the href navigates inside
+**Wishlist / Buy requests.** Lives behind a `[ My Inventory | Wishlist ]`
+segmented control inside Yarn Stash — the same subject from two sides, and
+splitting them meant the shortest journey in the app (ran out of a colour, so
+add it to the list) crossed a screen boundary. She adds yarn, kits or tools
+with a Shopee or TikTok Shop link (a missing `https://` is added, or the href navigates inside
 the app instead of out to the shop). The same documents render as a buying
 queue on Player 2's Supply Drop. Marking a yarn item bought drops it straight
 into her stash.
@@ -227,17 +244,31 @@ card on his dashboard and it appears at the top of her library, embedded and
 playable in-app; the seeded topics below it are deliberately *searches* rather
 than hardcoded video IDs, because a baked-in ID dies the day that channel does.
 
-*Glossary* — CH, SC, SL ST, INC, DEC, INV DEC, MR, FO, BLO/FLO and stitch
-anatomy, each with a hand-drawn labelled diagram (`StitchDiagram.jsx`). SVG
-rather than photos: for "where exactly does the hook go", a clean diagram beats
-a photograph of yarn, which is mostly fuzz. A `visual_glossary` document with
-the same id overrides any built-in entry, so a real GIF or a correction can be
-dropped in later without a code change.
+*Glossary* — 24 stitches drawn to the **Craft Yarn Council standard chart
+symbols** (`components/StitchSymbol.jsx`, data in `data/crochetSymbols.js`),
+grouped as Starting off / The height family / Shaping / Texture & edges. Every
+entry carries the US name, the UK name, how many yarn overs it takes, how to
+work it and when you would. A US/UK toggle relabels the whole list.
 
-*Cheat sheets* — yarn weight → hook size, where the swatch bar physically
-thickens with the strand, plus the amigurumi exception (go one or two sizes
-smaller so stuffing cannot show through); and metric ↔ US hook conversion with
-the dot scaled to the actual millimetres.
+The organising idea, stated in the UI rather than assumed: a chart is an
+alphabet. Each symbol is one stitch, they spell a pattern, no pattern uses all
+of them, and the shapes are near enough universal across US, Japanese and
+Russian charts. The rule worth learning is **one crossbar per yarn over** —
+HDC none, DC one, TR two, DTR three — which the primer shows as a row of
+symbols rather than describing.
+
+Hand-drawn how-to diagrams (`StitchDiagram.jsx`) still back the stitches where
+"where exactly does the hook go" needs more than a symbol. A `visual_glossary`
+document with the same id overrides any built-in entry, so a real GIF or a
+correction can be dropped in later without a code change.
+
+*Cheat sheets* — **US ↔ UK terminology**, the conversion nobody warns you about
+until a jumper comes out double-height (every US term shifts one place down the
+UK list, so both dialects use the same words for different stitches); the full
+symbol grid; yarn weight → hook size, where the swatch bar physically thickens
+with the strand, plus the amigurumi exception (go one or two sizes smaller so
+stuffing cannot show through); and metric ↔ US hook conversion with the dot
+scaled to the actual millimetres.
 
 **My Projects.** Custom projects outside the pattern catalogue: reference
 images, progress photos, and a yarn ledger. Usage is logged in quarter-skein
@@ -343,6 +374,18 @@ so mounting more screens does not open more.
 **Offline.** Firestore persistent cache is on, so the app keeps working when the
 wifi drops at the alley — writes queue locally and flush on reconnect.
 
+### Sub-tab scroll position
+
+The four Crochet pills overflow a phone, and every tab tap used to snap the row
+back to `scrollLeft: 0` — so reaching the last tab meant scrolling right again
+every single time. `SubTabs` now keeps the offset in a module-level Map keyed by
+nav group, written on scroll and again at `pointerdown`, and restores it in a
+`useLayoutEffect`. Module scope rather than state because the row unmounts when
+you leave the section entirely; layout effect rather than effect because
+restoring after paint is a visible snap to the left on a phone. With nothing
+saved yet it scrolls the active pill into view instead, so a deep link does not
+land with the current tab off screen.
+
 ### Two Tailwind gotchas this codebase has already hit
 
 Both cause the sidebar to render on top of the content, and neither is obvious:
@@ -371,9 +414,11 @@ live signal).
 
 ```
 users/{uid}                 name, role: player1|player2, avatar_url, email
-crochet_quests/{id}         title, pattern_id, requested_by, status, reward,
-                            priority, note, reference_image_url,
-                            completion_photo_url, date_requested, date_completed
+crochet_quests/{id}         title, pattern_id, requested_by, reward, priority,
+                            note, status: pending|accepted|completed,
+                            suggested_stitches[]  (keyword analyzer output),
+                            reference_image_url, completion_photo_url,
+                            date_requested, created_at, date_completed
 yarn_stash/{id}             color, weight, quantity, status: in_stock|low|empty,
                             brand, note
 bowling_sessions/{id}       type: training|tournament, date, location,
@@ -392,6 +437,9 @@ yarn_wishlist/{id}          title, url, kind, status: pending|purchased,
                             color, hex, weight, quantity, price, note,
                             added_date, purchased_date
 custom_projects/{id}        title, note, status: in_progress|completed,
+                            linked_quest_id  (null unless it came from a
+                            bounty), required_stitches[]  (copied from the
+                            quest at the moment she accepted it),
                             reference_images[], progress_photos[],
                             yarns_used[{stash_id,color,hex,quantity_used}],
                             created_at, completed_at

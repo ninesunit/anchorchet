@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 
+import { StitchSymbol } from '../../components/StitchSymbol'
 import { Badge, QuestStatusBadge, TierBadge } from '../../components/ui/Badge'
-import { Button, FloatingButton } from '../../components/ui/Button'
+import { Button, FabSpacer, FloatingButton } from '../../components/ui/Button'
 import { Card, EmptyState, SectionTitle } from '../../components/ui/Card'
 import { Chip, ChipRow, Field, Input, Segmented, Textarea } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
@@ -9,7 +10,9 @@ import { ImagePicker } from '../../components/ui/ImagePicker'
 import { ConfirmDialog, Modal } from '../../components/ui/Modal'
 import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
+import { stitchFromLabel } from '../../data/crochetSymbols'
 import { evaluateAll } from '../../data/engine'
+import { matchStitchRule } from '../../data/stitchAnalyzer'
 import { SERIES } from '../../data/patterns'
 import { cx, timeAgo } from '../../lib/utils'
 
@@ -78,6 +81,8 @@ export function QuestGenerator() {
         </>
       )}
 
+      <FabSpacer />
+
       <FloatingButton onClick={() => setComposing({})} aria-label="New quest">
         <Icon name="plus" size={26} strokeWidth={2.4} />
       </FloatingButton>
@@ -145,6 +150,47 @@ function QuestRow({ quest, onEdit }) {
   )
 }
 
+/**
+ * What the analyzer worked out, shown to him before he sends.
+ *
+ * He does not need to understand the stitches — the point is that she opens
+ * the bounty and already knows what it will take, without him having to know
+ * the words for it.
+ */
+function StitchGuess({ guess }) {
+  if (!guess) return null
+
+  return (
+    <div className="rounded-xl border border-violet/40 bg-violet-soft/25 p-3.5">
+      <div className="flex items-center gap-2">
+        <Icon name="sparkle" size={15} className="shrink-0 text-violet" />
+        <p className="text-[12px] font-bold uppercase tracking-wider text-violet">
+          Reads as {guess.label}
+        </p>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {guess.stitches.map((label) => {
+          const stitch = stitchFromLabel(label)
+          return (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-violet/40 bg-bg px-2.5 py-1 text-[12px] font-bold text-violet"
+            >
+              {stitch && <StitchSymbol name={stitch.symbol} size={13} />}
+              {label}
+            </span>
+          )
+        })}
+      </div>
+
+      <p className="mt-2.5 text-[12px] leading-snug text-muted">
+        {guess.note} She sees these on the bounty and can tap any one for the how-to.
+      </p>
+    </div>
+  )
+}
+
 function QuestComposer({ quest, stash, requesterName, onClose, onSave, onDelete }) {
   const open = Boolean(quest)
   const isEdit = Boolean(quest?.id)
@@ -179,10 +225,24 @@ function QuestComposer({ quest, stash, requesterName, onClose, onSave, onDelete 
   const options = readyOnly ? catalogue.filter((r) => r.status === 'ready') : catalogue
   const selected = catalogue.find((r) => r.pattern.id === patternId)
 
+  /**
+   * Read the stitches out of what he typed.
+   *
+   * Runs live so he can see what she will get before he sends it, and runs
+   * again at submit so the value on the document always matches what was on
+   * screen. Local and instant — no round trip, and no crochet knowledge needed
+   * on his side.
+   */
+  const guess = useMemo(
+    () => matchStitchRule(`${title} ${note} ${selected?.pattern.name || ''}`),
+    [title, note, selected]
+  )
+
   async function submit() {
+    const finalTitle = title.trim() || selected?.pattern.name || 'Crochet request'
     setBusy(true)
     await onSave({
-      title: title.trim() || selected?.pattern.name || 'Crochet request',
+      title: finalTitle,
       pattern_id: patternId || null,
       requested_by: requesterName,
       note: note.trim(),
@@ -190,6 +250,7 @@ function QuestComposer({ quest, stash, requesterName, onClose, onSave, onDelete 
       priority,
       status,
       reference_image_url: reference,
+      suggested_stitches: matchStitchRule(`${finalTitle} ${note}`)?.stitches ?? [],
       ...(isEdit ? {} : { date_requested: new Date() }),
     })
     setBusy(false)
@@ -326,6 +387,8 @@ function QuestComposer({ quest, stash, requesterName, onClose, onSave, onDelete 
             placeholder="Colours, size, where it's going to live…"
           />
         </Field>
+
+        <StitchGuess guess={guess} />
 
         <Field
           label="Reference image"

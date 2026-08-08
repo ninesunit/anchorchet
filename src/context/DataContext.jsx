@@ -134,7 +134,11 @@ export function DataProvider({ children }) {
           priority: 'normal',
           reference_image_url: '',
           completion_photo_url: '',
+          // Filled by the keyword analyzer when he composes the quest; an empty
+          // array is a real answer, so the default is [] rather than absent.
+          suggested_stitches: [],
           date_requested: new Date(),
+          created_at: new Date(),
           ...data,
         }),
       updateQuest: (id, patch) => backend.db.update(c.quests, id, patch),
@@ -189,6 +193,11 @@ export function DataProvider({ children }) {
           reference_images: [],
           progress_photos: [],
           yarns_used: [],
+          // Null unless the project came from accepting a bounty; the stitch
+          // list is carried over from the quest at that moment so editing the
+          // quest later cannot change what she is already working from.
+          linked_quest_id: null,
+          required_stitches: [],
           created_at: new Date(),
           ...data,
         }),

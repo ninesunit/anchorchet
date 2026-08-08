@@ -21,15 +21,39 @@ export function AnchorHome() {
   const active = quests.filter((q) => q.status !== 'completed')
   const inProgress = quests.filter((q) => q.status === 'in_progress')
   const nextEvent = events.find((e) => (e.date?.getTime?.() ?? 0) >= Date.now())
-  const last = sessions[0]
   const restock = stash.filter((y) => y.status === 'empty' || y.status === 'low')
 
-  // Prefer the session she has explicitly left open; fall back to the newest so
-  // the panel still shows something once she has ended for the day.
-  const liveSession = sessions.find((s) => s.is_active || s.status === 'live') || last
-  const standing = liveSession
-    ? benchmarkStanding(liveSession.game_scores || [])
-    : null
+  /**
+   * One session drives the whole card.
+   *
+   * Prefer the one she has explicitly left open; fall back to the newest so the
+   * panel still shows something once she has ended for the day. `is_active` is
+   * the authority — an old bug had the header hardcoded to "Live from the
+   * lanes", so a session ended fourteen hours ago still claimed to be live.
+   */
+  const session = sessions.find((s) => s.is_active === true || s.status === 'live') || sessions[0]
+  const isLive = Boolean(session && (session.is_active === true || session.status === 'live'))
+
+  /**
+   * Over/under comes off the document when she has one, so his screen shows the
+   * same number hers does even if the two disagree about rounding. Recomputing
+   * from game_scores is the fallback for sessions saved before the field
+   * existed.
+   */
+  const scores = session?.game_scores || []
+  const computed = session ? benchmarkStanding(scores) : null
+  const standing =
+    computed && typeof session?.current_over_under === 'number'
+      ? {
+          ...computed,
+          diff: session.current_over_under,
+          ahead: session.current_over_under > 0,
+          needNext:
+            typeof session.pins_needed_next_game === 'number'
+              ? session.pins_needed_next_game
+              : computed.needNext,
+        }
+      : computed
 
   const trigger = useHypeTrigger(sessions)
   const pendingHype = hype.filter((h) => h.to === 'player1' && !h.seen).length
@@ -45,34 +69,42 @@ export function AnchorHome() {
             </Link>
           }
         >
-          Live from the lanes
+          <span className="inline-flex items-center gap-2">
+            {isLive && (
+              <span className="relative flex size-2.5 shrink-0">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember opacity-70" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-ember" />
+              </span>
+            )}
+            {isLive ? 'Live from the lanes' : 'Latest session'}
+          </span>
         </SectionTitle>
 
-        {last ? (
+        {session ? (
           <Card
             className={cx(
               'p-4',
+              isLive && 'border-ember/40',
               trigger.hot && 'border-amber/50 bg-amber-soft/25'
             )}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="flex items-center gap-2 truncate font-extrabold">
-                  {(last.is_active || last.status === 'live') && (
-                    <span className="relative flex size-2 shrink-0">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-70" />
-                      <span className="relative inline-flex size-2 rounded-full bg-mint" />
-                    </span>
+                <p className="truncate font-extrabold">{session.location || 'The lanes'}</p>
+                <p className="mt-0.5 flex items-center gap-1.5 text-[12px]">
+                  {isLive ? (
+                    <span className="font-bold text-ember">Bowling now</span>
+                  ) : (
+                    <span className="text-faint">Finished {timeAgo(session.date)}</span>
                   )}
-                  {last.location || 'The lanes'}
-                </p>
-                <p className="mt-0.5 text-[12px] text-faint">
-                  {last.is_active || last.status === 'live' ? 'Bowling now' : timeAgo(last.date)}
                 </p>
               </div>
-              <Badge tone={last.type === 'tournament' ? 'ember' : 'neutral'}>
-                {last.type === 'tournament' ? 'Tournament' : 'Training'}
-              </Badge>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <Badge tone={session.type === 'tournament' ? 'ember' : 'neutral'}>
+                  {session.type === 'tournament' ? 'Tournament' : 'Training'}
+                </Badge>
+                {!isLive && <Badge tone="mint">Completed</Badge>}
+              </div>
             </div>
 
             {standing && standing.played > 0 && (
@@ -125,7 +157,7 @@ export function AnchorHome() {
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-faint">Series</p>
                 <p className="text-4xl font-extrabold leading-none tabular-nums">
-                  {last.series_total}
+                  {session.series_total}
                 </p>
               </div>
               <div>
@@ -133,7 +165,7 @@ export function AnchorHome() {
                   Average
                 </p>
                 <p className="text-4xl font-extrabold leading-none tabular-nums text-mint">
-                  {last.session_average}
+                  {session.session_average}
                 </p>
               </div>
               <div>
@@ -141,23 +173,25 @@ export function AnchorHome() {
                   Games
                 </p>
                 <p className="text-4xl font-extrabold leading-none tabular-nums">
-                  {(last.game_scores || []).length}
+                  {scores.length}
                 </p>
               </div>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {(last.game_scores || []).map((s, i) => (
+              {/* straight off game_scores, in the order she bowled them */}
+              {scores.map((score, i) => (
                 <span
                   key={i}
                   className={cx(
                     'rounded-lg border px-2.5 py-1 text-[14px] font-extrabold tabular-nums',
-                    s >= 200
-                      ? 'border-amber/50 bg-amber-soft text-amber'
+                    score >= BENCHMARK
+                      ? 'border-mint/50 bg-mint-soft text-mint'
                       : 'border-border bg-surface-2'
                   )}
+                  title={`Game ${i + 1}`}
                 >
-                  {s}
+                  {score}
                 </span>
               ))}
             </div>
@@ -299,7 +333,7 @@ export function AnchorHome() {
 
       <DropTutorialCard />
 
-      <HypeModal open={hyping} onClose={() => setHyping(false)} session={last} />
+      <HypeModal open={hyping} onClose={() => setHyping(false)} session={session} />
     </div>
   )
 }

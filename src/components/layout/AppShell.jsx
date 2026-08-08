@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../../context/AuthContext'
@@ -246,14 +247,66 @@ export function Logo({ size = 30 }) {
 
 /* ------------------------------------------------------------- sub-tabs -- */
 
+/**
+ * Where each sub-tab row was last scrolled to, keyed by nav group.
+ *
+ * Module scope rather than component state on purpose: the row has to survive
+ * the component unmounting, which is exactly what happens when you navigate
+ * away from Crochet and back. Two entries at most, so there is nothing to
+ * evict.
+ */
+const SUBTAB_SCROLL = new Map()
+
 /** Secondary nav used inside the Crochet and Bowling sections. */
 export function SubTabs({ items, className }) {
+  const ref = useRef(null)
+  const { pathname } = useLocation()
+  // '/crochet/stash' -> 'crochet', so the two sections remember separately.
+  const group = items[0]?.to?.split('/')[1] ?? 'default'
+
+  /**
+   * Restoring the scroll position.
+   *
+   * useLayoutEffect, not useEffect: after a route change React repaints with
+   * scrollLeft at 0, and putting it back after paint is a visible snap to the
+   * left on a phone. Layout effects run before the browser paints, so the row
+   * only ever renders where she left it.
+   */
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const saved = SUBTAB_SCROLL.get(group)
+    if (saved !== undefined) {
+      el.scrollLeft = saved
+      return
+    }
+
+    // First visit in this session — nothing to restore, but a deep link to the
+    // last tab should not leave the active pill off screen.
+    const active = el.querySelector('[aria-current="page"]')
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [group, pathname])
+
+  // Captured on every scroll frame *and* on the tap itself: onScroll alone
+  // misses nothing on iOS, but reading it again at pointerdown means the value
+  // is guaranteed fresh at the instant the route change is queued.
+  const remember = () => {
+    const el = ref.current
+    if (el) SUBTAB_SCROLL.set(group, el.scrollLeft)
+  }
+
   return (
-    <div className={cx('no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4', className)}>
+    <div
+      ref={ref}
+      onScroll={remember}
+      className={cx('no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4', className)}
+    >
       {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
+          onPointerDown={remember}
           className={({ isActive }) =>
             cx(
               'no-select inline-flex min-h-9 shrink-0 items-center rounded-full border px-4 text-[13px] font-bold transition',
